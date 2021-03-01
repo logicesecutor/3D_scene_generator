@@ -3,8 +3,6 @@ import bpy
 import os,io
 import logging as log
 
-
-
 from math import pi,ceil
 import time
 from mathutils import Vector
@@ -16,7 +14,7 @@ class PositioningOperator(bpy.types.Operator):
     bl_label = "object positioning"
     bl_description = "Automatic object recognition and positioning."
     
-    def execute(self,context):
+    def execute(self, context):
 
             #Parametri che venivano passati
             RENDER=False
@@ -31,9 +29,12 @@ class PositioningOperator(bpy.types.Operator):
             # Default location of object spawn
             default_location = Vector((0.0 ,0.0, 0.0))
             
+            # Massimo numero di loop per evitare effetto ping-pong degli errori
             MAX_LOOP = 5
             # Massimo errore nella sovrapposizione
             MAX_ERR = 0.03 # 3%
+            # Massimo numero di vertici in una mesh
+            MAX_N_VERTICES = 3500
             # Lista di appoggio per i dati delle mesh nella scena
             meshes = []
             occurences = {}
@@ -50,18 +51,15 @@ class PositioningOperator(bpy.types.Operator):
             #TODO: CREARE LA CAMERA NELLA POSIZIONE OTTENUTA
             #      ...
             
-            
             #TODO: FARE IL REMAPPING DELLA RISOLUZIONE DELL'IMMAGINE DI INPUT IN MODO CHE COMBACI CON LA
             #      RISOLUZIONE IN PIXEL DELLA CAMERA IN MODO DA GENERALIZZARE L'ALGORITMO AD OGNI IMMAGINE DI INPUT
             #      ...
-            
             
             # USO LA MATRICE DI TRASFORMAZIONE DELLA CAMERA PER 
             # OTTENERE I VETTORI DEGLI ASSI SUI QUALI SPOSTARE L'OGGETO
             camera_dir = camera.rotation_euler.to_matrix()
             
-            
-
+            # PER SCOPO DI DEBUG 
             if FROM_SCENE:
                 for me in context.scene.objects:
                     if me.type == 'MESH':
@@ -78,6 +76,7 @@ class PositioningOperator(bpy.types.Operator):
                 
                 meshes = detect(imagepath)
                 log.debug(meshes)
+
                 end = time.time()
                 
                 print(f"Inference time:: {end-start}")
@@ -97,7 +96,8 @@ class PositioningOperator(bpy.types.Operator):
                     mesh_name = bb_image["name"]+".fbx"
                     if mesh_name in os.listdir(path=database_path):
                         bpy.ops.import_scene.fbx(filepath=database_path+"//"+ mesh_name)
-                        # SELEZIONO LA MESH APPENA INSERITA (E LA RINOMINO)
+
+                        # SELEZIONO LA MESH APPENA INSERITA E LA RINOMINO
                         if bb_image["name"] in occurences.keys():
                             occurences[bb_image["name"]] += 1
                         else:
@@ -106,20 +106,41 @@ class PositioningOperator(bpy.types.Operator):
                         bpy.context.view_layer.objects.active = bpy.data.objects[bb_image["name"]]
                         mesh_obj = context.object
                         mesh_obj.name = f"{bb_image['name']}"+ str(occurences[bb_image["name"]])
+
+                        # APPLICO IL MODIFIER "DECIMATE" PER RIDURRE LA COMPLESSITÁ DELL'ALGORITMO
+                        n_vrt = len(mesh_obj.data.vertices.items())
+                        ratio = MAX_N_VERTICES / n_vrt
+                
+                        if n_vrt > MAX_N_VERTICES:
+                            # DECIMATE MODIFIER
+                            bpy.ops.object.modifier_add(type="DECIMATE")
+                            bpy.context.object.modifiers["Decimate"].ratio = ratio
+                            bpy.ops.object.modifier_apply()
+                            print(f"Applied DECIMATE modifier with ratio of {ratio}")
+
                     else:
                         bpy.ops.mesh.primitive_cube_add(location=default_location)
                         mesh_obj = context.object
                         
                 # allontano di focal_lenght/10 gli oggetti dalla camera
                 bpy.ops.transform.translate(value = bpy.context.scene.camera.matrix_world.to_3x3() @ Vector((0,0,-1*bpy.data.cameras["Camera"].lens/10)))
-                #bpy.ops.transform.resize(value=(3.5,3.5,3.5))
-                
+
                 # DEPTH ESTIMATION-DATA PER POSIZIONAMENTO NELLA PROFONDITÁ
                 # ...
                 # RIUTILIZZO DELA FUNZIONE DEPTH PER SCALARE L'OGGETTO
                 
-            
+
+                # APPROSSIMAZIONI SUCCESSIVE(DA OTTIMIZZARE)
+                pos_location(context, mesh_obj, bb_image, camera_dir, MAX_ERR)
+                camera_depth_dir = mesh_obj.location - camera.location
                 
+                loop_counter = 0            
+                while compute_all_error(context, mesh_obj, bb_image, MAX_ERR) and loop_counter < MAX_LOOP:
+                    
+                    pos_depth(context, mesh_obj, bb_image, camera_depth_dir, MAX_ERR)
+                    pos_rotation(context, mesh_obj, bb_image, MAX_ERR)
+                    
+
                 # APPROSSIMAZIONI SUCCESSIVE(DA OTTIMIZZARE)   
                 loop_counter = 0            
                 while compute_all_error(context, mesh_obj, bb_image, MAX_ERR) and loop_counter < MAX_LOOP:
@@ -132,7 +153,7 @@ class PositioningOperator(bpy.types.Operator):
                     
                     pos_rotation(context, mesh_obj, bb_image, MAX_ERR)
                     
-                    
+
                     loop_counter += 1
                 
                 # CALCOLO LA BOUNDING BOX FINALE (SOLO A SCOPO INFORMATIVO, SI PUÓ ELIMINARE)
@@ -298,14 +319,13 @@ def pos_rotation(context, mesh_obj, bb_image, MAX_ERR):
     log.info(f"{mesh_obj.name} rotated -> aspect ratio:: {bb_mesh['AR']}, error of:: {ar_err}")
         
         
-def pos_depth(context, mesh_obj, bb_image, camera_rot_mat, MAX_ERR):
+def pos_depth(context, mesh_obj, bb_image, camera_rot_vec, MAX_ERR):
+
     
     # POSIZIONAMENTO-----PROFONDITÁ
     
     # Quanto spostare ad ogni passo dell' algoritmo
     depth_step = 0.01
-    
-    #camera_dir_z = camera_rot_mat[2]
             
     # TODO: capire quanti cicli servono per ottenere un risultato soddisfacente
     for i in range(ceil(context.scene.render.resolution_y * 0.5)):
@@ -317,11 +337,12 @@ def pos_depth(context, mesh_obj, bb_image, camera_rot_mat, MAX_ERR):
         area_err = compute_err(bb_image["Area"], bb_mesh["Area"])
         
         if delta_area < 0 and area_err > MAX_ERR:
-            mesh_obj.location += camera_rot_mat * depth_step
+
+            mesh_obj.location += camera_rot_vec * depth_step
             
         elif delta_area > 0 and area_err > MAX_ERR: 
-            mesh_obj.location -= camera_rot_mat * depth_step
-            
+            mesh_obj.location -= camera_rot_vec * depth_step
+      
         else:
             break
     
@@ -331,7 +352,7 @@ def pos_depth(context, mesh_obj, bb_image, camera_rot_mat, MAX_ERR):
     
 def pos_location(context, mesh_obj, bb_image, camera_rot_mat, MAX_ERR):
     
-    # POSIZIONAMENTO-----Piano di camera
+    # POSIZIONAMENTO-----Piano di camera XY
     
     # Quanto spostarsi ad ogni passo dell' algoritmo
     location_step = 0.01
