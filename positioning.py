@@ -122,7 +122,7 @@ class PositioningOperator(bpy.types.Operator):
                         bpy.ops.mesh.primitive_cube_add(location=default_location)
                         mesh_obj = context.object
                         
-                # allontano di focal_lenght/10 gli oggetti dalla camera
+                # Allontano di focal_lenght/10 gli oggetti dalla camera
                 bpy.ops.transform.translate(value = bpy.context.scene.camera.matrix_world.to_3x3() @ Vector((0,0,-1*bpy.data.cameras["Camera"].lens/10)))
 
                 # DEPTH ESTIMATION-DATA PER POSIZIONAMENTO NELLA PROFONDITÁ
@@ -130,39 +130,31 @@ class PositioningOperator(bpy.types.Operator):
                 # RIUTILIZZO DELA FUNZIONE DEPTH PER SCALARE L'OGGETTO
                 
 
-                # APPROSSIMAZIONI SUCCESSIVE(DA OTTIMIZZARE)
+                # APPROSSIMAZIONI SUCCESSIVE(DA OTTIMIZZARE)   
+                loop_counter = 0
                 pos_location(context, mesh_obj, bb_image, camera_dir, MAX_ERR)
                 camera_depth_dir = mesh_obj.location - camera.location
-                
-                loop_counter = 0            
-                while compute_all_error(context, mesh_obj, bb_image, MAX_ERR) and loop_counter < MAX_LOOP:
+                            
+                try:
+                    while compute_all_error(context, mesh_obj, bb_image, MAX_ERR) and loop_counter < MAX_LOOP:
+                        
+                        pos_depth(context, mesh_obj, bb_image, camera_depth_dir, MAX_ERR)
+                        
+                        pos_rotation(context, mesh_obj, bb_image, MAX_ERR)
+                        
+                        loop_counter += 1
                     
-                    pos_depth(context, mesh_obj, bb_image, camera_depth_dir, MAX_ERR)
-                    pos_rotation(context, mesh_obj, bb_image, MAX_ERR)
+                    # CALCOLO LA BOUNDING BOX FINALE (SOLO A SCOPO INFORMATIVO, SI PUÓ ELIMINARE)
+                    bb_mesh = bb2D(scene, camera, mesh_obj)
+                    camera_obj_distance = context.object.location - camera.location
                     
+                    log.info(f"Finished with {bb_mesh['name']} -> width::{bb_mesh['Width']}, height::{bb_mesh['Height']}, "
+                            f"area::{bb_mesh['Area']}, distance from camera::{camera_obj_distance.magnitude}\n__________________")
+                except NoneType:
+                    print(f"Object {mesh_obj.name} out of camera view")
+                    continue
 
-                # APPROSSIMAZIONI SUCCESSIVE(DA OTTIMIZZARE)   
-                loop_counter = 0            
-                while compute_all_error(context, mesh_obj, bb_image, MAX_ERR) and loop_counter < MAX_LOOP:
-                    
-                    pos_location(context, mesh_obj, bb_image, camera_dir, MAX_ERR)
-                    
-                    camera_depth_dir = mesh_obj.location - camera.location
 
-                    pos_depth(context, mesh_obj, bb_image, camera_depth_dir, MAX_ERR)
-                    
-                    pos_rotation(context, mesh_obj, bb_image, MAX_ERR)
-                    
-
-                    loop_counter += 1
-                
-                # CALCOLO LA BOUNDING BOX FINALE (SOLO A SCOPO INFORMATIVO, SI PUÓ ELIMINARE)
-                bb_mesh = bb2D(scene, camera, mesh_obj)
-                camera_obj_distance = context.object.location - camera.location
-                
-                log.info(f"Finished with {bb_mesh['name']} -> width::{bb_mesh['Width']}, height::{bb_mesh['Height']}, "
-                        f"area::{bb_mesh['Area']}, distance from camera::{camera_obj_distance.magnitude}\n__________________")
-        
             end = time.time()
             print(f"Positioning time:: {end-start}")
                             
