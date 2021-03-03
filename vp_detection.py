@@ -31,18 +31,23 @@ class VPDetectionOperator(bpy.types.Operator):
         img = 'D:\\(D)Files\\Politecnico\\Polito\\Grafica\\Progetto\\AddOn\\test_image.jpg'
 
         # Get the image path
+        cwd = os.getcwd()
+        
         img=bpy.context.scene['image_filepath']
         print('path: ' + bpy.context.scene['image_filepath'])
 
         # Get the mesh database path
 
-        database_path = 'D:\\(D)Files\\Politecnico\\Polito\\Grafica\\Progetto\\AddOn\\Mesh database'
+        database_path = f"{cwd}/Mesh database" 
 
         # Preparing the view
 
         bpy.ops.view3d.view_axis(type='TOP', align_active=False, relative=False)
         
         bpy.ops.object.load_background_image(filepath=img, filter_image=True, filter_folder=True, view_align=True)
+
+        bpy.data.scenes["Scene"].render.use_freestyle
+        bpy.data.scenes["Scene"].render.line_thickness=0.6
 
         ### VP Detection #################################################################
 
@@ -219,8 +224,5 @@ class VPDetectionOperator(bpy.types.Operator):
         bpy.ops.view3d.snap_selected_to_cursor()
         bpy.ops.transform.rotate(value=math.radians(90), orient_axis='X')
         bpy.ops.transform.rotate(value=math.radians(90), orient_axis='Z')
-
-        bpy.ops.import_scene.fbx(filepath="D://(D)Files//Politecnico//Polito//Grafica//Progetto//AddOn//Mesh database//toilet.fbx")
-        bpy.ops.transform.translate(value = bpy.context.scene.camera.matrix_world.to_3x3() @ Vector((0,0,-1*bpy.data.cameras["Camera"].lens/10)))
 
         return {'FINISHED'}

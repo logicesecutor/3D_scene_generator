@@ -23,5 +23,15 @@ class Test_PT_Panel(bpy.types.Panel):
         row = layout.row()
         row.operator("view3d.object_positioning", text = "Object Positioning", icon = 'SNAP_VOLUME')
         
+        layout.separator()
+
+        row = layout.row()
+        row.operator("view3d.room", text = "Generate room", icon = 'AXIS_TOP')
+        
+        layout.separator()
+
+        row = layout.row()
+        row.operator("view3d.gravity", text = "Activate gravity", icon = 'DISCLOSURE_TRI_DOWN')
+        
         row = layout.row()
         

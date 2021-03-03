@@ -26,6 +26,8 @@ import bpy
 
 from . vp_detection import VPDetectionOperator
 from . positioning import PositioningOperator
+from . gravity import GravityOperator
+from . room import RoomOperator
 from . panel        import Test_PT_Panel
 from . operator     import CameraCalibration_FXY_PR_VV_Operator
 from . imagepick    import ImagePick
@@ -46,5 +48,5 @@ from . import threepoint
 
 print('---------------------------------')
 
-classes = (ImagePick, VPDetectionOperator, PositioningOperator, Test_PT_Panel, CameraCalibration_FXY_PR_VV_Operator)
+classes = (ImagePick, VPDetectionOperator, PositioningOperator, GravityOperator, RoomOperator, Test_PT_Panel, CameraCalibration_FXY_PR_VV_Operator)
 register, unregister = bpy.utils.register_classes_factory(classes)
