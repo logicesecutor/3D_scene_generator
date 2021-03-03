@@ -130,12 +130,11 @@ class PositioningOperator(bpy.types.Operator):
                 # RIUTILIZZO DELA FUNZIONE DEPTH PER SCALARE L'OGGETTO
                 
 
-                # APPROSSIMAZIONI SUCCESSIVE(DA OTTIMIZZARE)   
-                loop_counter = 0
-                pos_location(context, mesh_obj, bb_image, camera_dir, MAX_ERR)
-                camera_depth_dir = mesh_obj.location - camera.location
-                            
+                # APPROSSIMAZIONI SUCCESSIVE(DA OTTIMIZZARE)  
                 try:
+                    loop_counter = 0
+                    pos_location(context, mesh_obj, bb_image, camera_dir, MAX_ERR)
+                    camera_depth_dir = mesh_obj.location - camera.location
                     while compute_all_error(context, mesh_obj, bb_image, MAX_ERR) and loop_counter < MAX_LOOP:
                         
                         pos_depth(context, mesh_obj, bb_image, camera_depth_dir, MAX_ERR)
@@ -422,8 +421,7 @@ def detect(imagepath):
                             "Area": width * height
                         })
 
-            print(f"{name} : {probability} : {box_points}", file=fout)
-            print("--------------------------------", file=fout)
+            print(f"{name} {probability} {box_points}", file=fout)
     
     return meshes
             
