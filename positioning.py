@@ -93,9 +93,15 @@ class PositioningOperator(bpy.types.Operator):
                     
                 else:
                     # CERCO MESH CORRISPONDENTE NEL DATABASE
-                    mesh_name = bb_image["name"]+".fbx"
-                    if mesh_name in os.listdir(path=database_path):
-                        bpy.ops.import_scene.fbx(filepath=database_path+"//"+ mesh_name)
+                    mesh_name = bb_image["name"]
+                    
+                    with bpy.data.libraries.load(database_path+"\\entire_collection.blend") as (data_from, data_to):
+                        names = [name for name in data_from.objects]
+
+                    if mesh_name in names:
+                        bpy.ops.wm.append(
+                        directory=database_path,
+                        filename="entire_collection.blend\\Object\\"+bb_image["name"])
 
                         # SELEZIONO LA MESH APPENA INSERITA E LA RINOMINO
                         if bb_image["name"] in occurences.keys():
@@ -122,9 +128,10 @@ class PositioningOperator(bpy.types.Operator):
                         bpy.ops.mesh.primitive_cube_add(location=default_location)
                         mesh_obj = context.object
                         
-                # Allontano di focal_lenght/10 gli oggetti dalla camera
-                bpy.ops.transform.translate(value = bpy.context.scene.camera.matrix_world.to_3x3() @ Vector((0,0,-1*bpy.data.cameras["Camera"].lens/10)))
-
+                # Allontano di focal_lenght/sensor width (per ora 15 metri) gli oggetti dalla camera
+                #bpy.ops.transform.translate(value = camera.matrix_world.to_3x3() @ Vector((0,0,(-1 * bpy.data.cameras["Camera"].lens / bpy.data.cameras["Camera"].sensor_width))))
+                bpy.ops.transform.translate(value = camera.matrix_world.to_3x3() @ Vector((0,0,(-1 * 15))))
+                
                 # DEPTH ESTIMATION-DATA PER POSIZIONAMENTO NELLA PROFONDITÁ
                 # ...
                 # RIUTILIZZO DELA FUNZIONE DEPTH PER SCALARE L'OGGETTO
