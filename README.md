@@ -20,7 +20,7 @@ This step consists in calibrating the camera in order to match as much as possib
 
 To do so, Marco Rossini’s library takes as input a rectangle with two dangling vertices. The edges of the mesh must follow the perspective lines for the calibration to work properly.
 
-# VPs normalization
+### VPs normalization
 
 XiaohuLu’s library enabled us to generate this input using the vanishing points. 
 However, the library returns the vanishing points, expressed in pixel units, in a reference system that has the bottom-left corner of the image as origin.
@@ -51,13 +51,13 @@ else:
             scaling_factor = img_y/5
 ```
 
-# Rectangle mesh creation
+### Rectangle mesh creation
 
 The rectangle with two dangling vertices is then generated using a function implemented in Marco Rossini’s library (intersect_2d), that solves linear systems in order to compute the coordinates of the intersection between two lines.
 
 ![Rectangle creation](https://github.com/logicesecutor/3D_scene_generator/blob/main/doc/rectangle_creation.png "Rectangle creation")
 
-# Object rotation
+### Object rotation
 
 After the calibration, we also snap the camera to the origin of the 3D World and rotate it in order to match the x and y axis with the perspective lines of the first two vanishing points, and the z axis with the third. 
 In this way, when an object is inserted in the scene, its rotation is orthogonal to the camera direction. Especially in internal scenes, most of the objects present this rotation.
@@ -72,12 +72,12 @@ WIP
 
 ## Mesh Database
 
-# Library
+### Library
 
 The detected objects are imported as meshes from a .blend library (3d_scene_generator/Mesh Database/entire_collection.blend) containing the models of the most frequent labels.
 Thanks to the format (.blend), the imported objects embed shaders (materials and textures) and the physics properties.
 
-#Shading
+###Shading
 
 We chose a cell shading with outlines (evee freestyle activated) in order to represent the scene in the clearest way possible.
 
@@ -95,7 +95,7 @@ This step is ideally suited for internal scenes.
 It consists in generating a floor and two walls, and activate gravity in order to place the objects on the surface below (the floor or other objects).
 In order to do so, we suppose the size of the room basing on the objects that are present in the scene.
 
-# Floor
+### Floor
 
 In particular, we compute the lowest vertex (z-axis) for every object in the room and consider the minimum among these, then import the floor object and set its position to the minimum.
 
@@ -110,13 +110,13 @@ for obj in bpy.data. obects:
 
 ![Floor](https://github.com/logicesecutor/3D_scene_generator/blob/main/doc/floor.png "Floor")
 
-# Walls
+### Walls
 
 We further repeat this idea to generate the walls on x and y axis.
 
 ![Room generation](https://github.com/logicesecutor/3D_scene_generator/blob/main/doc/render_nogravity.png "Room generation")
 
-# Physics
+### Physics
 
 At this point, for each object, we lock all the possible transformations but the translation on the z-axis, and force the computation of the frame 50 (supposing that in this frame all the objects fell on the surfaces below).
 
