@@ -12,7 +12,7 @@ Blender API (bpy), [XiaohuLuVPDetection] (https://github.com/rayryeng/XiaohuLuVP
 
 ## Project structure
 
-![Structure]https://github.com/logicesecutor/3D_scene_generator/blob/main/doc/project_structure.JPG "Project structure")
+![Structure](https://github.com/logicesecutor/3D_scene_generator/blob/main/doc/project_structure.JPG "Project structure")
 
 ## Camera Calibration
 
@@ -27,7 +27,7 @@ However, the library returns the vanishing points, expressed in pixel units, in 
 Instead, when the reference image is imported in Blender, its dimensions are expressed in metres and the origin of the 3D World match the center of the image.
 So, we compute the new coordinates of the vanishing points in the reference system with the origin in the center of the image. 
 
-![system_change]https://github.com/logicesecutor/3D_scene_generator/blob/main/doc/system_change.png "Reference system change")
+![system_change](https://github.com/logicesecutor/3D_scene_generator/blob/main/doc/system_change.png "Reference system change")
 
 ```
 vp1[0] = vp1[0] - img_x/2
@@ -46,23 +46,23 @@ Now, we need to express the coordinates in metres (the unity used in Blender). S
 
 ```
 if (img_x>img_y):
-            fattscala = img_x/5
+            scaling_factor = img_x/5
 else:
-            fattscala = img_y/5
+            scaling_factor = img_y/5
 ```
 
-#Rectangle mesh creation
+# Rectangle mesh creation
 
 The rectangle with two dangling vertices is then generated using a function implemented in Marco Rossini’s library (intersect_2d), that solves linear systems in order to compute the coordinates of the intersection between two lines.
 
-![Rectangle creation]https://github.com/logicesecutor/3D_scene_generator/blob/main/doc/rectangle_creation.png "Rectangle creation")
+![Rectangle creation](https://github.com/logicesecutor/3D_scene_generator/blob/main/doc/rectangle_creation.png "Rectangle creation")
 
-#Object rotation
+# Object rotation
 
 After the calibration, we also snap the camera to the origin of the 3D World and rotate it in order to match the x and y axis with the perspective lines of the first two vanishing points, and the z axis with the third. 
 In this way, when an object is inserted in the scene, its rotation is orthogonal to the camera direction. Especially in internal scenes, most of the objects present this rotation.
 
-![Object rotation]https://github.com/logicesecutor/3D_scene_generator/blob/main/doc/rotation.png "Object rotation")
+![Object rotation](https://github.com/logicesecutor/3D_scene_generator/blob/main/doc/rotation.png "Object rotation")
 
 The calibration tool is started.
 
@@ -70,7 +70,7 @@ The calibration tool is started.
 
 WIP
 
-##Mesh Database
+## Mesh Database
 
 # Library
 
@@ -108,19 +108,19 @@ for obj in bpy.data. obects:
 		ground_position = min_z
 ```
 
-![Floor]https://github.com/logicesecutor/3D_scene_generator/blob/main/doc/floor.png "Floor")
+![Floor](https://github.com/logicesecutor/3D_scene_generator/blob/main/doc/floor.png "Floor")
 
 # Walls
 
 We further repeat this idea to generate the walls on x and y axis.
 
-![Room generation]https://github.com/logicesecutor/3D_scene_generator/blob/main/doc/render_nogravity.png "Room generation")
+![Room generation](https://github.com/logicesecutor/3D_scene_generator/blob/main/doc/render_nogravity.png "Room generation")
 
 # Physics
 
 At this point, for each object, we lock all the possible transformations but the translation on the z-axis, and force the computation of the frame 50 (supposing that in this frame all the objects fell on the surfaces below).
 
-![Physics]https://github.com/logicesecutor/3D_scene_generator/blob/main/doc/render_gravity.png "Physics") 
+![Physics](https://github.com/logicesecutor/3D_scene_generator/blob/main/doc/render_gravity.png "Physics") 
 
 
 
