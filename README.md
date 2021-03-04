@@ -42,7 +42,7 @@ vp3[1] = vp3[1] - img_y/2
 
 Now, we need to express the coordinates in metres (the unity used in Blender). Since Blender matches the longer dimension of the imported image with 5 metres, the scaling factor can be computed:
 
-![Blender importing]https://github.com/logicesecutor/3D_scene_generator/blob/main/doc/image_proportions.png "Blender importing")
+![Blender importing](https://github.com/logicesecutor/3D_scene_generator/blob/main/doc/image_proportions.png "Blender importing")
 
 ```
 if (img_x>img_y):
@@ -77,17 +77,17 @@ WIP
 The detected objects are imported as meshes from a .blend library (3d_scene_generator/Mesh Database/entire_collection.blend) containing the models of the most frequent labels.
 Thanks to the format (.blend), the imported objects embed shaders (materials and textures) and the physics properties.
 
-###Shading
+### Shading
 
 We chose a cell shading with outlines (evee freestyle activated) in order to represent the scene in the clearest way possible.
 
-![Shader]https://github.com/logicesecutor/3D_scene_generator/blob/main/doc/render.png "Shader")
+![Shader](https://github.com/logicesecutor/3D_scene_generator/blob/main/doc/render.png "Shader")
 
 To do so, we used the Diffuse shader and ‘discretized’ the rgb values into two flat shades (black or white) thanks to a threshold defined in the Color Ramp node.The output is then mixed with a base color (‘multiply’ blending mode). 
 Therefore, a specular reflection is added (‘add’ blending mode) using a Glossy shader (also discretized with a Color Ramp node).
 The final output is then mixed (‘multiply’ blending mode) with a texure (we used images or procedural patterns in some cases).
 
-![Shader Nodes]https://github.com/logicesecutor/3D_scene_generator/blob/main/doc/shader.png "Shader Nodes")
+![Shader Nodes](https://github.com/logicesecutor/3D_scene_generator/blob/main/doc/shader.png "Shader Nodes")
 
 ## Room Generation and Physics
 
