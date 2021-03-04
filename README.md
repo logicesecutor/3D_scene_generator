@@ -8,7 +8,7 @@ Languges:
 Python
 
 Main technologies and libraries: 
-Blender API (bpy), [XiaohuLuVPDetection] (https://github.com/rayryeng/XiaohuLuVPDetection), ]Camera Calibration PVR](https://github.com/mrossini-ethz/camera-calibration-pvr), [Image AI] (https://github.com/OlafenwaMoses/ImageAI)
+Blender API (bpy), [XiaohuLuVPDetection](https://github.com/rayryeng/XiaohuLuVPDetection), [Camera Calibration PVR](https://github.com/mrossini-ethz/camera-calibration-pvr), [Image AI](https://github.com/OlafenwaMoses/ImageAI)
 
 ## Project structure
 
