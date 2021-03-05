@@ -83,7 +83,7 @@ We chose a cell shading with outlines (evee freestyle activated) in order to rep
 
 ![Shader](https://github.com/logicesecutor/3D_scene_generator/blob/main/doc/render.png "Shader")
 
-To do so, we used the Diffuse shader and ‘discretized’ the rgb values into two flat shades (black or white) thanks to a threshold defined in the Color Ramp node.The output is then mixed with a base color (‘multiply’ blending mode). 
+To do so, we used the Diffuse shader and ‘discretize’ the rgb values into two flat shades (black or white) thanks to a threshold defined in the Color Ramp node.The output is then mixed with a base color (‘multiply’ blending mode). 
 Therefore, a specular reflection is added (‘add’ blending mode) using a Glossy shader (also discretized with a Color Ramp node).
 The final output is then mixed (‘multiply’ blending mode) with a texure (we used images or procedural patterns in some cases).
 
