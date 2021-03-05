@@ -163,7 +163,7 @@ class VPDetectionOperator(bpy.types.Operator):
         vc3 = list(vc3)
         vc3[0] = vc3[0]+1
 
-        ### Find the verts of the rectangle
+        ### Find the verts of the rectangle ##################################################
 
         B = [intersection.intersect_2d(np.asarray(verts[0]),vb1,np.asarray(verts[2]),vc2)[0], intersection.intersect_2d(np.asarray(verts[0]),vb1,np.asarray(verts[2]),vc2)[1], 0.0]
         A = [intersection.intersect_2d(np.asarray(verts[0]),vb1,np.asarray(verts[2]),vc1)[0], intersection.intersect_2d(np.asarray(verts[0]),vb1,np.asarray(verts[2]),vc1)[1], 0.0]
@@ -176,7 +176,7 @@ class VPDetectionOperator(bpy.types.Operator):
         print("vb1:")
         print(vb1)
 
-        ### Find the dangling verts
+        ### Find the dangling verts ##################################################
 
         F = [intersection.intersect_2d(np.asarray(verts[1]),A,np.asarray(verts[2]),vc3)[0], intersection.intersect_2d(np.asarray(verts[1]),A,np.asarray(verts[2]),vc3)[1], 0.0]
         E = [intersection.intersect_2d(np.asarray(verts[1]),D,np.asarray(verts[2]),vc3)[0], intersection.intersect_2d(np.asarray(verts[1]),D,np.asarray(verts[2]),vc3)[1], 0.0]
@@ -203,7 +203,8 @@ class VPDetectionOperator(bpy.types.Operator):
 
         print('Rectangle created.')
 
-        ### Select the rectangle only, in order to make the camera calibration module to work 
+        ### Select the rectangle only, in order to make the camera calibration module to work  ###
+
         bpy.ops.object.select_all(action='DESELECT')
         obj.select_set(True)
 
@@ -217,15 +218,17 @@ class VPDetectionOperator(bpy.types.Operator):
             if ob != bpy.data.objects["Camera"] and ob != bpy.data.objects["Light"]:
                 ob.select_set(True)
         bpy.ops.object.delete()
+
+        print('prova')
         
-        ### Normalize the camera orientation #################
+        ### Normalize the camera orientation ##################################
 
         bpy.data.objects["Camera"].select_set(True)
         bpy.ops.view3d.snap_cursor_to_center()
         bpy.ops.view3d.snap_selected_to_cursor()
         bpy.ops.transform.rotate(value=math.radians(90), orient_axis='X')
 
-        ### Detect the orientation of the room from camera #################
+        ### Detect the orientation of the room from camera and normalize again #################
 
         camera=bpy.context.scene.camera
         camera_rot=camera.matrix_world.to_3x3() @ Vector((0,0,-1))
@@ -240,7 +243,6 @@ class VPDetectionOperator(bpy.types.Operator):
         elif room_orient[0] and not room_orient[1]:
             bpy.ops.transform.rotate(value=math.radians(90), orient_axis='Z')
         elif not room_orient[0] and room_orient[1]:
-        bpy.ops.transform.rotate(value=math.radians(270), orient_axis='Z')
-
+            bpy.ops.transform.rotate(value=math.radians(270), orient_axis='Z')
 
         return {'FINISHED'}
