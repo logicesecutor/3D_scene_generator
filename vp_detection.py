@@ -218,11 +218,29 @@ class VPDetectionOperator(bpy.types.Operator):
                 ob.select_set(True)
         bpy.ops.object.delete()
         
-        
+        ### Normalize the camera orientation #################
+
         bpy.data.objects["Camera"].select_set(True)
         bpy.ops.view3d.snap_cursor_to_center()
         bpy.ops.view3d.snap_selected_to_cursor()
         bpy.ops.transform.rotate(value=math.radians(90), orient_axis='X')
-        bpy.ops.transform.rotate(value=math.radians(90), orient_axis='Z')
+
+        ### Detect the orientation of the room from camera #################
+
+        camera=bpy.context.scene.camera
+        camera_rot=camera.matrix_world.to_3x3() @ Vector((0,0,-1))
+
+        room_orient=[False,False]
+
+        room_orient[0]=False if camera_rot[0]<0 else True
+        room_orient[1]=False if camera_rot[1]<0 else True
+
+        if not room_orient[0] and not room_orient[1]:
+            bpy.ops.transform.rotate(value=math.radians(180), orient_axis='Z')
+        elif room_orient[0] and not room_orient[1]:
+            bpy.ops.transform.rotate(value=math.radians(90), orient_axis='Z')
+        elif not room_orient[0] and room_orient[1]:
+        bpy.ops.transform.rotate(value=math.radians(270), orient_axis='Z')
+
 
         return {'FINISHED'}
