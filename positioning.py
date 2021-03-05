@@ -1,11 +1,13 @@
 import bpy
 
 import os,io
-import logging as log
-
-from math import pi,ceil
 import time
-from mathutils import Vector
+
+from math import pi,ceil, floor
+from mathutils import Vector, Matrix
+import numpy as np
+from matplotlib import pyplot as plt
+from PIL import Image
 
 from imageai.Detection import ObjectDetection
 
@@ -16,164 +18,152 @@ class PositioningOperator(bpy.types.Operator):
     
     def execute(self, context):
 
-            #Parametri che venivano passati
-            RENDER=False
-            FROM_SCENE=False
-            
-            log.basicConfig(filename="LOG.log", filemode="w", level=log.INFO)
-            
-            # Getting Current Working Directory
-            cwd = os.getcwd()
-            database_path = f"{cwd}/Mesh database"  
-            imagepath=bpy.context.scene['image_filepath']
-            # Default location of object spawn
-            default_location = Vector((0.0 ,0.0, 0.0))
-            
-            # Massimo numero di loop per evitare effetto ping-pong degli errori
-            MAX_LOOP = 5
-            # Massimo errore nella sovrapposizione
-            MAX_ERR = 0.03 # 3%
-            # Massimo numero di vertici in una mesh
-            MAX_N_VERTICES = 3500
-            # Lista di appoggio per i dati delle mesh nella scena
-            meshes = []
-            occurences = {}
+        # Set True to render the scene
+        RENDER=False
+    
+        # Getting Current Working Directory
+        cwd = os.getcwd()
+        database_path = f"{cwd}/Mesh database"  
+        imagepath = bpy.context.scene['image_filepath']
+        # Default location of object spawn
+        default_location = Vector((0.0 ,0.0, 0.0))  # Center of the world
+        
 
-            #Utility variables
-            scene = context.scene
-            camera = context.scene.camera
-            
-            
-            #TODO: PULIRE LA SCENA DA OGNI OGGETTO E METTERE UNA NUOVA CAMERA DI CUI SAPPIAMO
-            #      I PARAMETRI E LA MATRICE DI ROTAZIONE
-            #      ...
-            
-            #TODO: CREARE LA CAMERA NELLA POSIZIONE OTTENUTA
-            #      ...
-            
-            #TODO: FARE IL REMAPPING DELLA RISOLUZIONE DELL'IMMAGINE DI INPUT IN MODO CHE COMBACI CON LA
-            #      RISOLUZIONE IN PIXEL DELLA CAMERA IN MODO DA GENERALIZZARE L'ALGORITMO AD OGNI IMMAGINE DI INPUT
-            #      ...
-            
-            # USO LA MATRICE DI TRASFORMAZIONE DELLA CAMERA PER 
-            # OTTENERE I VETTORI DEGLI ASSI SUI QUALI SPOSTARE L'OGGETO
-            camera_dir = camera.rotation_euler.to_matrix()
-            
-            # PER SCOPO DI DEBUG 
-            if FROM_SCENE:
-                for me in context.scene.objects:
-                    if me.type == 'MESH':
-                        #Tolgo i casi in cui sia un oggetto fuori camera
-                        bb_image = bb_from_scene(context, me)
-                        if bb_image!= None: 
-                            meshes.append(bb_image) 
-                        else:
-                            continue
-                        
-            # Analizzo l'immagine di input Con ImageAI
+        # Max sovrapposition error
+        MAX_ERR = 0.01 # 1%
+        # Max vertices in a mesh before apply decimate modifier
+        MAX_N_VERTICES = 5000
+        # List to store all meshes BB data
+        meshes = []
+        occurences = {}
+        # Camera direction vectors
+        camera_dir = camera_dir_mat()
+
+        #Useful variables
+        scene = context.scene
+        camera = context.scene.camera
+        
+        #Loading depth data from pickled numpy ndarray: shape(1, 128, 160, 1)
+        pred_array = np.load("depth_prediction.dat", allow_pickle=True)
+        
+        #CLEAR THE SCENE EXCEPT THE CAMERA, OBV
+        for o in bpy.context.scene.objects:
+            if o.type == 'MESH':
+                o.select_set(True)
             else:
-                start = time.time()
-                
-                meshes = detect(imagepath)
-                log.debug(meshes)
+                o.select_set(False)
 
-                end = time.time()
-                
-                print(f"Inference time:: {end-start}")
-                
+        # Call the operator only once
+        bpy.ops.object.delete()
+        
+        
+
+        # IMAGE-AI OBJECT DETECTION
+        inference_start = time.time()
+        meshes = detect(imagepath)
+        
+        print(f"Inference time:: {time.time()-inference_start}\n")
             
-            start = time.time()
+        
+        # POSITIONING EVERY OBJECTS IN THE SCENE ACCORDINGLY TO THE IMAGE
+        obj_positioning_start = time.time()
+        
+        for bb_image in meshes:
             
-            for bb_image in meshes:
-                
-                if FROM_SCENE:
-                    # INSERISCO UNA NUOVA MESH DAL DATABASE CHE COMBACIA IN UNA LOCATION DI DEFAULT (0, 0, 0)
-                    bpy.ops.mesh.primitive_cube_add(location=default_location)
-                    mesh_obj = context.object
-                    
+            # SEARCH FOR A MESH IN THE DATABASE WITH THE SAME LABEL
+            # AND GIVE IT A PROPER BLENDER LIKE NAME
+            mesh_name = bb_image["name"]
+            
+            with bpy.data.libraries.load(database_path+"\\entire_collection.blend") as (data_from, data_to):
+                names = [name for name in data_from.objects]
+
+            if mesh_name in names:
+                bpy.ops.wm.append(
+                directory=database_path,
+                filename="entire_collection.blend\\Object\\"+bb_image["name"])
+
+                # SELECT THE INSERTED MESH
+                if bb_image["name"] in occurences.keys():
+                    occurences[bb_image["name"]] += 1
                 else:
-                    # CERCO MESH CORRISPONDENTE NEL DATABASE
-                    mesh_name = bb_image["name"]
-                    
-                    with bpy.data.libraries.load(database_path+"\\entire_collection.blend") as (data_from, data_to):
-                        names = [name for name in data_from.objects]
-
-                    if mesh_name in names:
-                        bpy.ops.wm.append(
-                        directory=database_path,
-                        filename="entire_collection.blend\\Object\\"+bb_image["name"])
-
-                        # SELEZIONO LA MESH APPENA INSERITA E LA RINOMINO
-                        if bb_image["name"] in occurences.keys():
-                            occurences[bb_image["name"]] += 1
-                        else:
-                            occurences[bb_image["name"]] = 0
-                        
-                        bpy.context.view_layer.objects.active = bpy.data.objects[bb_image["name"]]
-                        mesh_obj = context.object
-                        mesh_obj.name = f"{bb_image['name']}"+ str(occurences[bb_image["name"]])
-
-                        # APPLICO IL MODIFIER "DECIMATE" PER RIDURRE LA COMPLESSITÁ DELL'ALGORITMO
-                        n_vrt = len(mesh_obj.data.vertices.items())
-                        ratio = MAX_N_VERTICES / n_vrt
+                    occurences[bb_image["name"]] = 0
                 
-                        if n_vrt > MAX_N_VERTICES:
-                            # DECIMATE MODIFIER
-                            bpy.ops.object.modifier_add(type="DECIMATE")
-                            bpy.context.object.modifiers["Decimate"].ratio = ratio
-                            bpy.ops.object.modifier_apply()
-                            print(f"Applied DECIMATE modifier with ratio of {ratio}")
-
-                    else:
-                        bpy.ops.mesh.primitive_cube_add(location=default_location)
-                        mesh_obj = context.object
-                        
-                # Allontano di focal_lenght/sensor width (per ora 15 metri) gli oggetti dalla camera
-                #bpy.ops.transform.translate(value = camera.matrix_world.to_3x3() @ Vector((0,0,(-1 * bpy.data.cameras["Camera"].lens / bpy.data.cameras["Camera"].sensor_width))))
-                bpy.ops.transform.translate(value = camera.matrix_world.to_3x3() @ Vector((0,0,(-1 * 15))))
+                bpy.context.view_layer.objects.active = bpy.data.objects[bb_image["name"]]
+                mesh_obj = context.object
+                mesh_obj.name = f"{bb_image['name']}"+ ".%03d" % (occurences[bb_image["name"]])
                 
-                # DEPTH ESTIMATION-DATA PER POSIZIONAMENTO NELLA PROFONDITÁ
-                # ...
-                # RIUTILIZZO DELA FUNZIONE DEPTH PER SCALARE L'OGGETTO
+                # NUMBER OF VERTICES IN A MESH
+                n_vrt = len(mesh_obj.data.vertices.items())
                 
-
-                # APPROSSIMAZIONI SUCCESSIVE(DA OTTIMIZZARE)  
-                try:
-                    loop_counter = 0
-                    pos_location(context, mesh_obj, bb_image, camera_dir, MAX_ERR)
-                    camera_depth_dir = mesh_obj.location - camera.location
-                    while compute_all_error(context, mesh_obj, bb_image, MAX_ERR) and loop_counter < MAX_LOOP:
-                        
-                        pos_depth(context, mesh_obj, bb_image, camera_depth_dir, MAX_ERR)
-                        
-                        pos_rotation(context, mesh_obj, bb_image, MAX_ERR)
-                        
-                        loop_counter += 1
+                if n_vrt > MAX_N_VERTICES:
+                    # APPLY A DECIMATE MODIFIER TO SHRINK DOWN THE COMPLEXITY OF THE MESH
+                    ratio = MAX_N_VERTICES/n_vrt
                     
-                    # CALCOLO LA BOUNDING BOX FINALE (SOLO A SCOPO INFORMATIVO, SI PUÓ ELIMINARE)
-                    bb_mesh = bb2D(scene, camera, mesh_obj)
-                    camera_obj_distance = context.object.location - camera.location
+                    bpy.ops.object.modifier_add(type="DECIMATE")
+                    bpy.context.object.modifiers["Decimate"].ratio = ratio
+                    bpy.ops.object.modifier_apply()
                     
-                    log.info(f"Finished with {bb_mesh['name']} -> width::{bb_mesh['Width']}, height::{bb_mesh['Height']}, "
-                            f"area::{bb_mesh['Area']}, distance from camera::{camera_obj_distance.magnitude}\n__________________")
-                except NoneType:
-                    print(f"Object {mesh_obj.name} out of camera view")
-                    continue
+                    print(f"Applied DECIMATE modifier with ratio of {ratio}")
+            else:
+                bpy.ops.mesh.primitive_cube_add(location=default_location)
+                mesh_obj = context.object
+            
+
+            #=================================================================================================
+            # OBJECT POSITIONING IN CAMERA VIEW
+            # TODO: FIND A WAY TO UNDERSTAND IF THE OBJECT IS IN A PROPRIATE
+            #       SCALE TO FIT THE CAMERA VIEW
+            mesh_obj.location += camera_dir[2] * 10 # meter
+            camera_obj_origin_dist = (mesh_obj.location - camera.location).magnitude
+    
+                
+            try: 
+                
+                pos_location_oneshot(context, mesh_obj, bb_image, camera_dir)
+                
+                camera_obj_dir = (mesh_obj.location - camera.location).normalized()
+                
+                pos_depth_AI(context, mesh_obj, camera_obj_dir, camera_obj_origin_dist, pred_array)
+                
+                #pos_rotation(context, mesh_obj, bb_image, MAX_ERR)
+                
+            
+            except TypeError:
+
+                print(f"Object {mesh_obj.name} out of camera view. Can't compute Bounding Box.\n"
+                    "Next Item.")
+                continue
+            
+            #==================================================================================================
+
+        print(f"Positioning time:: {time.time()-obj_positioning_start}")
+                        
+                        
+        if RENDER:
+            # RENDER CREATED SCENE             
+            bpy.ops.render.render(use_viewport=True)
+            bpy.ops.render.render()
+            bpy.data.images['Render Result'].save_render(filepath=f"{cwd}/render.jpg")
+
+            log.info(f"Render done and saved in: {cwd}")
+
+        return {'FINISHED'}
 
 
-            end = time.time()
-            print(f"Positioning time:: {end-start}")
-                            
-                            
-            if RENDER:
-                # RENDER SCENA CREATA             
-                bpy.ops.render.render(use_viewport=True)
-                bpy.ops.render.render()
-                bpy.data.images['Render Result'].save_render(filepath=f"{cwd}/render.jpg")
+def camera_dir_mat():
 
-                log.info(f"Render done and saved in: {cwd}")
+    camera = bpy.context.scene.camera
+    
+    right = Vector((1.0, 0.0, 0.0))
+    up = Vector((0.0, 1.0, 0.0))
+    front = Vector((0.0, 0.0, -1.0))
+    
+    camera_dir = Matrix((right,up,front))
+    camera_dir = camera.rotation_euler.to_matrix() @ camera_dir
+    camera_dir.transpose()
+    
+    return camera_dir
 
-            return {'FINISHED'}
 
 def clamp(x, minimum, maximum):
     return max(minimum, min(x, maximum))
@@ -267,41 +257,21 @@ def bb2D(scene, cam_ob, me_ob):
         "Area": width * height
     }
 
-def bb_from_scene(context, me):
-        
-    log.info(f"2D bounding box vertices {me.name}:")
-    
-    bb_image = bb2D(context.scene, context.scene.camera, me)
-
-    #LOGGO I DATI SUL FILE DI LOGGING
-    log.info(bb_image)
-    log.info("__________________")
-
-    return bb_image
-            
-def compute_all_error(context, mesh_obj, bb_image, MAX_ERR):
-    
-    bb_mesh = bb2D(context.scene, context.scene.camera, mesh_obj)
-    avg_err = (compute_err(bb_image['X'], bb_mesh['X']) + compute_err(bb_image['Y'], bb_mesh['Y'])) * 0.5
-    
-    return True if (avg_err > MAX_ERR or compute_err(bb_image['AR'], bb_mesh['AR']) > MAX_ERR or compute_err(bb_image['Area'], bb_mesh['Area']) > MAX_ERR) else False
-    
     
 def compute_err(ideal_value, computed_value):
     
     return abs(ideal_value - computed_value) / ideal_value
 
 
-
 def pos_rotation(context, mesh_obj, bb_image, MAX_ERR):
     
-    # POSIZIONAMENTO-----ROTAZIONE
+    # POSITIONING -----> ROTATION
     # ar_  = aspect ratio
     
-    # Quanto ruotare in radianti ad ogni passo dell' algoritmo
+    # Radians step for each rotation
     rotation_step = 0.01
     
-    # CONFRONTO L'ASPECT RATIO DELLE BOUNDING BOX CALCOLANDONE L'ERRORE
+    # Compare the aspect ratio of the image BB and mesh BB
     for i in range(ceil(2 * pi / rotation_step)):
         
         bb_mesh = bb2D(context.scene, context.scene.camera, mesh_obj)
@@ -313,22 +283,21 @@ def pos_rotation(context, mesh_obj, bb_image, MAX_ERR):
         else: 
             break
     
-    # LOG SU FILE
-    log.info(f"{mesh_obj.name} rotated -> aspect ratio:: {bb_mesh['AR']}, error of:: {ar_err}")
+    print(f"{mesh_obj.name} rotated -> aspect ratio:: {bb_mesh['AR']}, error of:: {ar_err}")
         
         
 def pos_depth(context, mesh_obj, bb_image, camera_rot_vec, MAX_ERR):
-
+    """ DEPRECATED """
     
-    # POSIZIONAMENTO-----PROFONDITÁ
+    # POSIZIONAMENTO -----> DEPTH
     
-    # Quanto spostare ad ogni passo dell' algoritmo
-    depth_step = 0.01
+    # Meter step for each rotation
+    depth_step = 0.02
             
-    # TODO: capire quanti cicli servono per ottenere un risultato soddisfacente
+    # TODO: understand how many cycles are needed to obtain a good result
     for i in range(ceil(context.scene.render.resolution_y * 0.5)):
         
-        # CALCOLO LE AREE DELLE BOUNDING BOX
+        # COMPUTE BB AREAS
         bb_mesh = bb2D(context.scene, context.scene.camera, mesh_obj)
         
         delta_area = bb_image["Area"] - bb_mesh["Area"]
@@ -344,8 +313,46 @@ def pos_depth(context, mesh_obj, bb_image, camera_rot_vec, MAX_ERR):
         else:
             break
     
-    # LOG SU FILE  
-    log.info(f"{mesh_obj.name} depth positioned -> Bounding Box area:: {bb_mesh['Area']}, error of:: {area_err}")
+    print(f"{mesh_obj.name} depth positioned -> Bounding Box area:: {bb_mesh['Area']}, error of:: {area_err}")
+
+
+def pos_depth_AI(context, mesh_obj, camera_obj_dir, camera_obj_origin_dist, pred, mode='avg'):
+    
+    bb_mesh = bb2D(context.scene, context.scene.camera, mesh_obj)
+    
+    # MAPPO LE MISURE IN PIXEL DELLA BOUNDING BOX NEGLI INDICI DELLA MATRICE CON LE PREDIZIONI SULLE DISTANZE 
+    x_old = bb_mesh["X"] - bb_mesh["Width"] * 0.5
+    y_old = bb_mesh["Y"] - bb_mesh["Height"] * 0.5
+    
+    # fattore di scala arrotondato all'intero piú basso
+    scale_factor_x = len(pred[0,0,:]) / context.scene.render.resolution_x
+    scale_factor_y = len(pred[0,:]) / context.scene.render.resolution_y
+    
+    x_new = floor(scale_factor_x * x_old)
+    y_new = floor(scale_factor_y * y_old)
+    
+    width_new = floor(bb_mesh["Width"] * scale_factor_x)
+    height_new = floor(bb_mesh["Height"] * scale_factor_y)
+    
+    if mode == 'center':
+        # DISTANZA DIRETTA DEL CENTRO DELLA BOUNDING BOX
+        dist = pred[0,y_new+height_new, x_new+width_new,0]
+    elif mode == 'avg':
+        # MEDIA DEI VALORI DELLE DISTANZE PREDETTE
+        dist = np.average(pred[0, y_new : y_new+height_new, x_new : x_new+width_new, 0])
+    elif mode == 'w_avg':
+        dist = np.average(pred[0, y_new : y_new+height_new, x_new : x_new+width_new, 0], weigth= weigth)
+    else:
+        print("Insert a correct mode: avg or w_avg or center")
+        
+    
+    delta_depth = dist.item() - camera_obj_origin_dist
+    
+    mesh_obj.location += camera_obj_dir * delta_depth
+    
+    print(f"Predicted distance: {dist}\n"
+          f"Step: {delta_depth}\n"
+          f"Direction: {camera_obj_dir}")
     
     
 def pos_location(context, mesh_obj, bb_image, camera_rot_mat, MAX_ERR):
@@ -392,7 +399,94 @@ def pos_location(context, mesh_obj, bb_image, camera_rot_mat, MAX_ERR):
         
     # LOG SU FILE  
     log.info(f"{mesh_obj.name} positioned -> center coordinates:: ({bb_mesh['X']}, {bb_mesh['Y']}), X,Y errors:: ({X_location_err}, {Y_location_err})")
+
+
+def pos_location_oneshot(context, mesh_obj, bb_image, camera_dir):
+    
+    scene = context.scene
+    camera = context.scene.camera
+
+    bb_mesh = bb2D(scene, camera, mesh_obj)
+
+    FL = bpy.data.cameras["Camera"].lens
+    CSW =  bpy.data.cameras["Camera"].sensor_width
+    CO = (mesh_obj.location - camera.location).magnitude
+
+    dept_scale_fac = (CSW * CO) / FL
+
+    camera_width_pix = scene.render.resolution_x
+    camera_height_pix = scene.render.resolution_y
+
+    camera_width_meter = camera.data.view_frame(scene=scene)[0].x * 2
+    camera_height_meter = camera.data.view_frame(scene=scene)[0].y * 2
+
+    scale_fac_x = camera_width_meter / camera_width_pix
+    scale_fac_y = camera_height_meter / camera_height_pix
+
+    pos_x_meter = (bb_image["X"] - bb_mesh["X"]) * scale_fac_x * dept_scale_fac
+    pos_y_meter = (bb_image["Y"] - bb_mesh["Y"]) * scale_fac_y * dept_scale_fac
+
+    print(f"Camera Plane x step: {pos_x_meter}\n"
+          f"Camera Plane y step: {pos_y_meter}")
+
+    mesh_obj.location += camera_dir[0] * pos_x_meter
+    mesh_obj.location -= camera_dir[1] * pos_y_meter
+    
+
+def predict(imagepath):
+    
+    # import tensorflow.compat.v1 as tf
+    # tf.disable_v2_behavior()
+    
+    cwd = os.getcwd()
+
+    # RELATIVE PATH
+    model_data_path = f"{cwd}/trained_model/NYU_FCRN.ckpt"
+    image_path = imagepath
+
+    # Default input size
+    height = 228
+    width = 304
+    channels = 3
+    batch_size = 1
+   
+    # Read image
+    img = Image.open(image_path)
+    img = img.resize([width,height], Image.ANTIALIAS)
+    img = np.array(img).astype('float32')
+    img = np.expand_dims(np.asarray(img), axis = 0)
+   
+    # Create a placeholder for the input image
+    input_node = tf.placeholder(tf.float32, shape=(None, height, width, channels))
+
+    # Construct the network
+    net = models.ResNet50UpProj({'data': input_node}, batch_size, 1, False)
         
+    with tf.Session() as sess:
+
+        # Load the converted parameters
+        print('Loading the model')
+
+        # Use to load from ckpt file
+        saver = tf.train.Saver()     
+        saver.restore(sess, model_data_path)
+
+        # Use to load from npy file
+        # net.load(model_data_path, sess) 
+
+        # Evalute the network for the given image
+        pred = sess.run(net.get_output(), feed_dict={input_node: img})
+        plt.imsave(fname=f"{cwd}/output_image.jpg",arr=pred[0,:,:,0])
+        
+        # # Plot result
+        # fig = plt.figure()
+        # ii = plt.imshow(pred[0,:,:,0])
+        # plt.gray()
+        # print(fig.colorbar(ii))
+        # plt.show()
+        
+        return pred[0,:,:,0]
+
 
 def detect(imagepath):
     cwd = os.getcwd()
@@ -400,8 +494,10 @@ def detect(imagepath):
     meshes = []
 
     detector = ObjectDetection()
-    detector.setModelTypeAsRetinaNet()
-    detector.setModelPath(f"{cwd}/Image Ai/retinanet.h5")
+    # detector.setModelTypeAsRetinaNet()
+    # detector.setModelPath(f"{cwd}/Image Ai/retinanet.h5")
+    detector.setModelTypeAsYOLOv3()
+    detector.setModelPath(f"{cwd}/Image Ai/yolo.h5")
     detector.loadModel()
 
     detections = detector.detectObjectsFromImage(input_image=imagepath, 
@@ -431,5 +527,4 @@ def detect(imagepath):
             print(f"{name} {probability} {box_points}", file=fout)
     
     return meshes
-            
 
