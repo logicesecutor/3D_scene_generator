@@ -2,6 +2,7 @@ import bpy
 import bmesh
 import os
 from mathutils import Matrix
+from mathutils import Vector
 
 
 class RoomOperator(bpy.types.Operator):
@@ -10,10 +11,24 @@ class RoomOperator(bpy.types.Operator):
     bl_description = "Generates a room basing on the position of the objects."
 
     def execute(self, context):
+
+        print('----------ROOM GENERATION----------')
+
         ground_z = 0
         wall_x = 0
         wall_y = 0
         bpy.ops.object.select_all(action='DESELECT')
+
+        #Detect the orientation of the room from camera
+        camera=bpy.context.scene.camera
+        camera_rot=camera.matrix_world.to_3x3() @ Vector((0,0,-1))
+
+        room_orient=[False,False]
+
+        room_orient[0]=False if camera_rot[0]<0 else True
+        room_orient[1]=False if camera_rot[1]<0 else True
+
+        print(room_orient)
 
         for obj in bpy.data.objects:
             
@@ -22,30 +37,42 @@ class RoomOperator(bpy.types.Operator):
                 obj.select_set(True)
                 bpy.context.view_layer.objects.active = obj
                 
-                extern = computeExternVert(obj,'GLOBAL')
+                extern = computeExternVert(obj,'GLOBAL',room_orient)
                 lowest_z = extern[2]
-                x_min = extern[0]
+                x_max = extern[0]
                 y_max = extern[1]
 
                 #print(obj.name+" lowest vert: "+ str(lowest_z))
-                print(obj.name+" x_min: "+ str(x_min))
+                print(obj.name+" x_max: "+ str(x_max))
                 print(obj.name+" y_max: "+ str(y_max))                
                 
                 if lowest_z < ground_z:
                     ground_z = lowest_z
                     #print("new ground_z: " + str(ground_z))
 
-                if x_min < wall_x:
-                    wall_x = x_min
+                if x_max > wall_x and room_orient[0]==True:
+                    wall_x = x_max
                     print("new wall_x: " + str(wall_x))
+
+                if x_max < wall_x and room_orient[0]==False:
+                    wall_x = x_max
+                    print("new wall_x: " + str(wall_x))   
                 
-                if y_max > wall_y:
+                if y_max > wall_y and room_orient[1]==True:
+                    wall_y = y_max
+                    print("new wall_y: " + str(wall_y))
+                
+                if y_max < wall_y and room_orient[1]==False:
                     wall_y = y_max
                     print("new wall_y: " + str(wall_y))
 
                 #tolgo la edit mode e deseleziono l'oggetto
                 bpy.ops.object.editmode_toggle()
                 obj.select_set(False)
+
+        wall_x = wall_x-5 +0.05 if room_orient[0]==True else wall_x+5 -0.05
+        wall_y = wall_y-5 +0.05 if room_orient[1]==True else wall_y+5 -0.05
+        lowest_z = lowest_z - 0.1
 
         #importo il pavimento, attento al percorso
         # Getting Current Working Directory
@@ -70,18 +97,18 @@ class RoomOperator(bpy.types.Operator):
         bpy.ops.object.editmode_toggle() #object
 
         #creo le pareti su wall_x e wall_y
-        floor_edges[3].select = True
+        floor_edges[3 if room_orient[1]==True else 1].select = True
         bpy.ops.object.editmode_toggle() #edit
-        bpy.ops.transform.translate(value=(0, wall_y-5+0.05, 0), constraint_axis=(False, True, False), mirror=True)
+        bpy.ops.transform.translate(value=(0, wall_y, 0), constraint_axis=(False, True, False), mirror=True)
         bpy.ops.mesh.select_all(action='DESELECT')
         bpy.ops.object.editmode_toggle() #object
-        floor_edges[0].select = True
+        floor_edges[2 if room_orient[0]==True else 0].select = True
         bpy.ops.object.editmode_toggle() #edit
-        bpy.ops.transform.translate(value=(wall_x+5-0.05, -0, -0), constraint_axis=(True, False, False), mirror=True)
+        bpy.ops.transform.translate(value=(wall_x, -0, -0), constraint_axis=(True, False, False), mirror=True)
         bpy.ops.mesh.extrude_region_move(MESH_OT_extrude_region={"use_normal_flip":False, "mirror":False}, TRANSFORM_OT_translate={"value":(0, 0, 5), "orient_type":'GLOBAL', "orient_matrix":((1, 0, 0), (0, 1, 0), (0, 0, 1)), "orient_matrix_type":'GLOBAL', "constraint_axis":(False, False, True), "mirror":False, "use_proportional_edit":False, "proportional_edit_falloff":'SMOOTH', "proportional_size":1, "use_proportional_connected":False, "use_proportional_projected":False, "snap":False, "snap_target":'CLOSEST', "snap_point":(0, 0, 0), "snap_align":False, "snap_normal":(0, 0, 0), "gpencil_strokes":False, "cursor_transform":False, "texture_space":False, "remove_on_cancel":False, "release_confirm":False, "use_accurate":False})
         bpy.ops.mesh.select_all(action='DESELECT')
         bpy.ops.object.editmode_toggle() #object
-        floor_edges[3].select = True
+        floor_edges[3 if room_orient[1]==True else 1].select = True
         bpy.ops.object.editmode_toggle() #edit
         bpy.ops.mesh.extrude_region_move(MESH_OT_extrude_region={"use_normal_flip":False, "mirror":False}, TRANSFORM_OT_translate={"value":(0, 0, 5), "orient_type":'GLOBAL', "orient_matrix":((1, 0, 0), (0, 1, 0), (0, 0, 1)), "orient_matrix_type":'GLOBAL', "constraint_axis":(False, False, True), "mirror":False, "use_proportional_edit":False, "proportional_edit_falloff":'SMOOTH', "proportional_size":1, "use_proportional_connected":False, "use_proportional_projected":False, "snap":False, "snap_target":'CLOSEST', "snap_point":(0, 0, 0), "snap_align":False, "snap_normal":(0, 0, 0), "gpencil_strokes":False, "cursor_transform":False, "texture_space":False, "remove_on_cancel":False, "release_confirm":False, "use_accurate":False})
         bpy.ops.mesh.select_all(action='SELECT')
@@ -91,7 +118,7 @@ class RoomOperator(bpy.types.Operator):
 
         return {'FINISHED'}
 
-def computeExternVert(obj, space):
+def computeExternVert(obj, space, room_orient):
     # edit mode per selezionare vertici
     bpy.ops.object.editmode_toggle()
 
@@ -109,8 +136,8 @@ def computeExternVert(obj, space):
     bm.select_flush(False)
     #bm.select_flush_mode()
     
-    x = (M @ verts0[0].co).x
-    y = (M @ verts1[-1].co).y
+    x = (M @ verts0[0 if room_orient[0]==False else -1].co).x
+    y = (M @ verts1[0 if room_orient[1]==False else -1].co).y
     z = (M @ verts2[0].co).z
     
     bmesh.update_edit_mesh(me)

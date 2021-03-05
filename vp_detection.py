@@ -46,7 +46,7 @@ class VPDetectionOperator(bpy.types.Operator):
         
         bpy.ops.object.load_background_image(filepath=img, filter_image=True, filter_folder=True, view_align=True)
 
-        bpy.data.scenes["Scene"].render.use_freestyle
+        bpy.data.scenes["Scene"].render.use_freestyle=True
         bpy.data.scenes["Scene"].render.line_thickness=0.6
 
         ### VP Detection #################################################################
@@ -205,7 +205,7 @@ class VPDetectionOperator(bpy.types.Operator):
 
         ### Select the rectangle only, in order to make the camera calibration module to work 
         bpy.ops.object.select_all(action='DESELECT')
-        bpy.data.objects["rectangle"].select_set(True)
+        obj.select_set(True)
 
         ### Start camera calibration based on the rectangle (active object) #################
         print('Calibrating camera...')
@@ -213,11 +213,11 @@ class VPDetectionOperator(bpy.types.Operator):
     
         bpy.ops.object.select_all(action='DESELECT')
 
-        bpy.data.objects["rectangle"].select_set(True)
-        bpy.data.objects["rectangle_Cal"].select_set(True)
-        bpy.data.objects["Empty"].select_set(True)
-        bpy.data.objects["vp2d"].select_set(True)
+        for ob in bpy.data.objects:
+            if ob != bpy.data.objects["Camera"] and ob != bpy.data.objects["Light"]:
+                ob.select_set(True)
         bpy.ops.object.delete()
+        
         
         bpy.data.objects["Camera"].select_set(True)
         bpy.ops.view3d.snap_cursor_to_center()
