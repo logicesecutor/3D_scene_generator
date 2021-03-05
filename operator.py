@@ -312,7 +312,7 @@ class CameraCalibration_FXY_PR_VV_Operator(bpy.types.Operator):
             return {'CANCELLED'}
 
         # Get the properties
-        props = bpy.context.scene.camera_calibration_pvr_properties
+        #props = bpy.context.scene.camera_calibration_pvr_properties
         # Reference image
         image_obj = bpy.data.objects["Empty"]
         if not image_obj:
