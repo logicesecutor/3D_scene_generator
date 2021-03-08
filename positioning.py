@@ -3,7 +3,7 @@ import bpy
 import os,io
 import time
 
-from math import pi,ceil, floor, radians
+from math import pi,ceil, floor, radians, pow, sqrt
 from mathutils import Vector, Matrix
 import numpy as np
 from matplotlib import pyplot as plt
@@ -164,6 +164,23 @@ class PositioningOperator(bpy.types.Operator):
             log.info(f"Render done and saved in: {cwd}")
 
         return {'FINISHED'}
+
+
+def correction_factor(axis_mat, vector):
+    
+    #==============================
+    # Angle on ZX camera plane
+    v = vector.normalized()
+    v.y = axis_mat[2].y
+    costeta = axis_mat[2].dot(v)
+    
+    
+    # Angle on YZ camera plane
+    v = vector.normalized()
+    v.x = axis_mat[2].x
+    cosalfa = axis_mat[2].dot(v)
+    
+    return sqrt(pow(cosalfa, 2) + pow(costeta, 2) / (cosalfa * costeta))
 
 
 def camera_dir_mat():
@@ -345,15 +362,15 @@ def pos_depth(context, mesh_obj, bb_image, camera_rot_vec, MAX_ERR):
     print(f"{mesh_obj.name} depth positioned -> Bounding Box area:: {bb_mesh['Area']}, error of:: {area_err}")
 
 
-def pos_depth_AI(context, mesh_obj, camera_obj_dir, camera_obj_origin_dist, pred, mode='avg'):
+def pos_depth_AI(context, mesh_obj, camera_obj_dir, camera_obj_origin_dist, pred, correction_factor=1, mode='avg'):
     
     bb_mesh = bb2D(context.scene, context.scene.camera, mesh_obj)
     
-    # MAPPO LE MISURE IN PIXEL DELLA BOUNDING BOX NEGLI INDICI DELLA MATRICE CON LE PREDIZIONI SULLE DISTANZE 
+    # Index mapping to correctly acces the numpy array 
     x_old = bb_mesh["X"] - bb_mesh["Width"] * 0.5
     y_old = bb_mesh["Y"] - bb_mesh["Height"] * 0.5
     
-    # fattore di scala arrotondato all'intero piú basso
+    # Scale factor from low to high definition image
     scale_factor_x = len(pred[0,0,:]) / context.scene.render.resolution_x
     scale_factor_y = len(pred[0,:]) / context.scene.render.resolution_y
     
@@ -364,23 +381,28 @@ def pos_depth_AI(context, mesh_obj, camera_obj_dir, camera_obj_origin_dist, pred
     height_new = floor(bb_mesh["Height"] * scale_factor_y)
     
     if mode == 'center':
-        # DISTANZA DIRETTA DEL CENTRO DELLA BOUNDING BOX
+        # Distance vaule from the BB center
         dist = pred[0,y_new+height_new, x_new+width_new,0]
     elif mode == 'avg':
-        # MEDIA DEI VALORI DELLE DISTANZE PREDETTE
+        # Distance value from the average values in the BB area
         dist = np.average(pred[0, y_new : y_new+height_new, x_new : x_new+width_new, 0])
     elif mode == 'w_avg':
+        # TODO: DEFINE A WEIGTH MATRIX
+        # Distance value from the weigthed average values in the BB area
         dist = np.average(pred[0, y_new : y_new+height_new, x_new : x_new+width_new, 0], weigth= weigth)
     else:
         print("Insert a correct mode: avg or w_avg or center")
         
     
-    delta_depth = dist.item() - camera_obj_origin_dist
+    delta_depth = (dist - camera_obj_origin_dist) * correction_factor
     
     mesh_obj.location += camera_obj_dir * delta_depth
     
     print(f"Predicted distance: {dist}\n"
+          f"Initial distance from camera: {camera_obj_origin_dist}\n"
+          f"Final distance from camera: {(mesh_obj.location-context.scene.camera.location).magnitude}\n"
           f"Step: {delta_depth}\n"
+          f"Corection factor: {correction_factor}(default value=1)\n"
           f"Direction: {camera_obj_dir}")
     
     
