@@ -10,6 +10,10 @@ from matplotlib import pyplot as plt
 from PIL import Image
 import numpy as np
 
+from .depth_prediction import deptPredictionThread
+
+from threading import Thread
+
 from imageai.Detection import ObjectDetection
 
 class PositioningOperator(bpy.types.Operator):
@@ -30,8 +34,9 @@ class PositioningOperator(bpy.types.Operator):
         imagepath = bpy.context.scene['image_filepath']
         # Default location of object spawn
         default_location = Vector((0.0 ,0.0, 0.0))  # Center of the world
-        
-
+        # Thread object for depth prediction
+        depth_pred_thread = deptPredictionThread(cwd, imagepath)
+        depth_pred_thread.start()
         # Max aspect ratio error
         MAX_ERR = 0.75 #75%
         # Max vertices in a mesh before apply decimate modifier
@@ -46,8 +51,6 @@ class PositioningOperator(bpy.types.Operator):
         scene = context.scene
         camera = context.scene.camera
         
-        #Loading depth data from pickled numpy ndarray: shape(1, 128, 160, 1)
-        pred_array = np.load("depth_prediction.dat", allow_pickle=True)
         
         #CLEAR THE SCENE EXCEPT THE CAMERA, OBV
         for o in bpy.context.scene.objects:
@@ -66,6 +69,10 @@ class PositioningOperator(bpy.types.Operator):
         meshes = detect(imagepath)
         
         print(f"Inference time:: {time.time()-inference_start}\n")
+
+        depth_pred_thread.join()
+        #Loading depth data from pickled numpy ndarray: shape(1, 128, 160, 1)
+        pred_array = np.load("depth_prediction.dat", allow_pickle=True)
             
         
         # POSITIONING EVERY OBJECTS IN THE SCENE ACCORDINGLY TO THE IMAGE
