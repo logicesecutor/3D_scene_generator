@@ -129,4 +129,7 @@ dmypy.json
 .pyre/
 
 # Data model
-Image Ai/yolo.h5
+*.h5
+*.ckpt.meta
+*.ckpt.index
+*.ckpt.data-00000-of-00001
