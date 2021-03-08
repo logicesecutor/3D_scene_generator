@@ -3,11 +3,12 @@ import bpy
 import os,io
 import time
 
-from math import pi,ceil, floor
+from math import pi,ceil, floor, radians
 from mathutils import Vector, Matrix
 import numpy as np
 from matplotlib import pyplot as plt
 from PIL import Image
+import numpy as np
 
 from imageai.Detection import ObjectDetection
 
@@ -17,6 +18,8 @@ class PositioningOperator(bpy.types.Operator):
     bl_description = "Automatic object recognition and positioning."
     
     def execute(self, context):
+
+        print('\n---------------  POSITIONING  ---------------')
 
         # Set True to render the scene
         RENDER=False
@@ -29,8 +32,8 @@ class PositioningOperator(bpy.types.Operator):
         default_location = Vector((0.0 ,0.0, 0.0))  # Center of the world
         
 
-        # Max sovrapposition error
-        MAX_ERR = 0.01 # 1%
+        # Max aspect ratio error
+        MAX_ERR = 0.75 #75%
         # Max vertices in a mesh before apply decimate modifier
         MAX_N_VERTICES = 5000
         # List to store all meshes BB data
@@ -75,12 +78,12 @@ class PositioningOperator(bpy.types.Operator):
             mesh_name = bb_image["name"]
             
             with bpy.data.libraries.load(database_path+"\\entire_collection.blend") as (data_from, data_to):
-                names = [name for name in data_from.objects]
+                names = [name for name in data_from.collections]
 
             if mesh_name in names:
                 bpy.ops.wm.append(
                 directory=database_path,
-                filename="entire_collection.blend\\Object\\"+bb_image["name"])
+                filename="entire_collection.blend\\Collection\\"+bb_image["name"])
 
                 # SELECT THE INSERTED MESH
                 if bb_image["name"] in occurences.keys():
@@ -91,6 +94,8 @@ class PositioningOperator(bpy.types.Operator):
                 bpy.context.view_layer.objects.active = bpy.data.objects[bb_image["name"]]
                 mesh_obj = context.object
                 mesh_obj.name = f"{bb_image['name']}"+ ".%03d" % (occurences[bb_image["name"]])
+
+                print('\n---------------  '+mesh_obj.name+'  ---------------')
                 
                 # NUMBER OF VERTICES IN A MESH
                 n_vrt = len(mesh_obj.data.vertices.items())
@@ -105,27 +110,29 @@ class PositioningOperator(bpy.types.Operator):
                     
                     print(f"Applied DECIMATE modifier with ratio of {ratio}")
             else:
-                bpy.ops.mesh.primitive_cube_add(location=default_location)
+                bpy.ops.wm.append(
+                directory=database_path,
+                filename="entire_collection.blend\\Collection\\empty box")
                 mesh_obj = context.object
+                print('\n---------------  ' + bb_image["name"] + '  ---------------')
+                print('No' + bb_image["name"] + 'meshes in db. Replaced it with an empty box.')
             
-
             #=================================================================================================
             # OBJECT POSITIONING IN CAMERA VIEW
             # TODO: FIND A WAY TO UNDERSTAND IF THE OBJECT IS IN A PROPRIATE
             #       SCALE TO FIT THE CAMERA VIEW
-            mesh_obj.location += camera_dir[2] * 10 # meter
+            mesh_obj.location += camera_dir[2] * 10 # meters
             camera_obj_origin_dist = (mesh_obj.location - camera.location).magnitude
-    
-                
+ 
             try: 
                 
+                bb_mesh = bb2D(scene, camera, mesh_obj)  #va fatto ora perchè gli oggetti sono nel frustum 
+
                 pos_location_oneshot(context, mesh_obj, bb_image, camera_dir)
                 
                 camera_obj_dir = (mesh_obj.location - camera.location).normalized()
                 
                 pos_depth_AI(context, mesh_obj, camera_obj_dir, camera_obj_origin_dist, pred_array)
-                
-                #pos_rotation(context, mesh_obj, bb_image, MAX_ERR)
                 
             
             except TypeError:
@@ -133,7 +140,9 @@ class PositioningOperator(bpy.types.Operator):
                 print(f"Object {mesh_obj.name} out of camera view. Can't compute Bounding Box.\n"
                     "Next Item.")
                 continue
-            
+                
+            pos_rotation(context, camera, mesh_obj, bb_mesh, bb_image, MAX_ERR)
+        
             #==================================================================================================
 
         print(f"Positioning time:: {time.time()-obj_positioning_start}")
@@ -263,14 +272,28 @@ def compute_err(ideal_value, computed_value):
     return abs(ideal_value - computed_value) / ideal_value
 
 
-def pos_rotation(context, mesh_obj, bb_image, MAX_ERR):
-    
+def pos_rotation(context, camera, mesh_obj, bb_mesh, bb_image, MAX_ERR):
+
     # POSITIONING -----> ROTATION
     # ar_  = aspect ratio
     
-    # Radians step for each rotation
-    rotation_step = 0.01
-    
+    #bb_mesh = bb2D(context.scene, context.scene.camera, mesh_obj)
+    ar_err = compute_err(bb_image['AR'], bb_mesh['AR'])
+    print('Aspect ratio in the image: ' + str(bb_image['AR']))
+    print('Aspect ratio of mesh: ' + str(bb_mesh['AR']))
+    print('Aspect ratio error: ' + str(ar_err))
+    if ar_err > MAX_ERR:
+        if (np.linalg.inv(camera.matrix_world) @ mesh_obj.matrix_world)[0][3] > 0:
+            mesh_obj.rotation_euler.z -= radians(90)
+            print("Error is greater than threshold ("+str(MAX_ERR)+"). " + f"{mesh_obj.name} rotated of -90")
+        else:
+            mesh_obj.rotation_euler.z += radians(90)
+            print("Error is greater than threshold ("+str(MAX_ERR)+"). " + f"{mesh_obj.name} rotated of +90")
+        
+        
+
+    '''
+    OLD METHOD (ITERATIVE)
     # Compare the aspect ratio of the image BB and mesh BB
     for i in range(ceil(2 * pi / rotation_step)):
         
@@ -282,8 +305,7 @@ def pos_rotation(context, mesh_obj, bb_image, MAX_ERR):
             
         else: 
             break
-    
-    print(f"{mesh_obj.name} rotated -> aspect ratio:: {bb_mesh['AR']}, error of:: {ar_err}")
+    '''
         
         
 def pos_depth(context, mesh_obj, bb_image, camera_rot_vec, MAX_ERR):
