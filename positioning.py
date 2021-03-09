@@ -644,6 +644,7 @@ def generate_grass():
     #porto il pavimento alla z minima
     bpy.ops.transform.translate(value=(0, 0, ground_z))
 
+    bpy.ops.screen.frame_jump(end=False)
     bpy.ops.screen.animation_play()
     
 def computeExternVert(obj, space, room_orient):
