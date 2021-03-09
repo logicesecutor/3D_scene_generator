@@ -1,4 +1,5 @@
 import bpy
+import bmesh
 
 import os,io
 import time
@@ -119,10 +120,10 @@ class PositioningOperator(bpy.types.Operator):
             else:
                 bpy.ops.wm.append(
                 directory=database_path,
-                filename="entire_collection.blend\\Collection\\empty box")
+                filename="entire_collection.blend\\Object\\empty box")
                 mesh_obj = context.object
                 print('\n---------------  ' + bb_image["name"] + '  ---------------')
-                print('No' + bb_image["name"] + 'meshes in db. Replaced it with an empty box.')
+                print('No ' + bb_image["name"] + ' meshes in db. Replaced it with an empty box.')
             
             #=================================================================================================
             # OBJECT POSITIONING IN CAMERA VIEW
@@ -162,6 +163,8 @@ class PositioningOperator(bpy.types.Operator):
             bpy.data.images['Render Result'].save_render(filepath=f"{cwd}/render.jpg")
 
             log.info(f"Render done and saved in: {cwd}")
+
+        generate_grass()
 
         return {'FINISHED'}
 
@@ -579,3 +582,93 @@ def detect(imagepath):
     
     return meshes
 
+def generate_grass():
+    print('----------ROOM GENERATION----------')
+
+    ground_z = 0
+    bpy.ops.object.select_all(action='DESELECT')
+    bpy.context.scene.frame_end = 50
+
+    #Detect the orientation of the room from camera
+    camera=bpy.context.scene.camera
+    camera_rot=camera.matrix_world.to_3x3() @ Vector((0,0,-1))
+
+    room_orient=[False,False]
+
+    room_orient[0]=False if camera_rot[0]<0 else True
+    room_orient[1]=False if camera_rot[1]<0 else True
+
+    print(room_orient)
+
+    for obj in bpy.data.objects:
+        
+        if obj != bpy.data.objects["Camera"] and obj != bpy.data.objects["Light"]:
+
+            if obj.name=='room' or obj.name=='grass':
+                    bpy.ops.object.select_all(action='DESELECT')
+                    obj.select_set(True)
+                    bpy.ops.object.delete()
+            
+            obj.lock_location=(False, False, False)
+            obj.lock_rotation=(True, True, True)
+
+            obj.select_set(True)
+            bpy.context.view_layer.objects.active = obj
+            
+            extern = computeExternVert(obj,'GLOBAL',room_orient)
+            lowest_z = extern[2]         
+            
+            if lowest_z < ground_z:
+                ground_z = lowest_z
+                #print("new ground_z: " + str(ground_z))
+
+            #tolgo la edit mode e deseleziono l'oggetto
+            bpy.ops.object.editmode_toggle()
+            obj.select_set(False)
+
+    lowest_z = lowest_z - 0.1
+
+    #importo il pavimento, attento al percorso
+    # Getting Current Working Directory
+    cwd = os.getcwd()
+    database_path = f"{cwd}/Mesh database"  
+
+    bpy.ops.wm.append(
+                directory=database_path,
+                filename="entire_collection.blend\\Object\\grass")
+    
+    bpy.data.objects["blade"].hide_viewport=True
+
+    grass_obj=bpy.context.scene.objects["grass"]
+    bpy.context.view_layer.objects.active = grass_obj
+    #porto il pavimento alla z minima
+    bpy.ops.transform.translate(value=(0, 0, ground_z))
+
+    bpy.ops.screen.animation_play()
+    
+def computeExternVert(obj, space, room_orient):
+    # edit mode per selezionare vertici
+    bpy.ops.object.editmode_toggle()
+
+    #space = 'LOCAL' or 'GLOBAL'
+    TOL = 1e-7
+    M = obj.matrix_world if space == 'GLOBAL' else Matrix()
+    me = obj.data
+
+    bm = bmesh.from_edit_mesh(me)
+
+    verts0 = sorted(bm.verts, key=lambda v: (M @ v.co).x)
+    verts1 = sorted(bm.verts, key=lambda v: (M @ v.co).y)
+    verts2 = sorted(bm.verts, key=lambda v: (M @ v.co).z)
+
+    bm.select_flush(False)
+    #bm.select_flush_mode()
+
+    x = (M @ verts0[0 if room_orient[0]==False else -1].co).x
+    y = (M @ verts1[0 if room_orient[1]==False else -1].co).y
+    z = (M @ verts2[0].co).z
+
+    bmesh.update_edit_mesh(me)
+
+    #ritorno i vertici esterni
+    return [x,y,z]
