@@ -637,7 +637,7 @@ def generate_grass():
                 directory=database_path,
                 filename="entire_collection.blend\\Object\\grass")
     
-    bpy.data.objects["blade"].hide_viewport=True
+    #bpy.data.objects["blade"].hide_viewport=True
 
     grass_obj=bpy.context.scene.objects["grass"]
     bpy.context.view_layer.objects.active = grass_obj
