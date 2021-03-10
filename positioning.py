@@ -39,7 +39,7 @@ class PositioningOperator(bpy.types.Operator):
         depth_pred_thread = deptPredictionThread(cwd, imagepath)
         depth_pred_thread.start()
         # Max aspect ratio error
-        MAX_ERR = 0.75 #75%
+        MAX_ERR = 0.01 # 1%
         # Max vertices in a mesh before apply decimate modifier
         MAX_N_VERTICES = 5000
         # List to store all meshes BB data
@@ -134,10 +134,12 @@ class PositioningOperator(bpy.types.Operator):
  
             try: 
                 
-                bb_mesh = bb2D(scene, camera, mesh_obj)  #va fatto ora perchè gli oggetti sono nel frustum 
-
                 pos_location_oneshot(context, mesh_obj, bb_image, camera_dir)
-                
+
+                #bb_mesh = bb2D(scene, camera, mesh_obj)  #va fatto ora perchè gli oggetti sono nel frustum 
+
+                pos_rotation(context, camera, mesh_obj, bb_image, MAX_ERR)
+
                 camera_obj_dir = (mesh_obj.location - camera.location).normalized()
                 
                 pos_depth_AI(context, mesh_obj, camera_obj_dir, camera_obj_origin_dist, pred_array)
@@ -149,7 +151,7 @@ class PositioningOperator(bpy.types.Operator):
                     "Next Item.")
                 continue
                 
-            pos_rotation(context, camera, mesh_obj, bb_mesh, bb_image, MAX_ERR)
+           
         
             #==================================================================================================
 
@@ -299,25 +301,42 @@ def compute_err(ideal_value, computed_value):
     return abs(ideal_value - computed_value) / ideal_value
 
 
-def pos_rotation(context, camera, mesh_obj, bb_mesh, bb_image, MAX_ERR):
+def pos_rotation(context, camera, mesh_obj, bb_image, MAX_ERR):
 
     # POSITIONING -----> ROTATION
     # ar_  = aspect ratio
     
-    #bb_mesh = bb2D(context.scene, context.scene.camera, mesh_obj)
-    ar_err = compute_err(bb_image['AR'], bb_mesh['AR'])
+    bb_mesh = bb2D(context.scene, context.scene.camera, mesh_obj)
+    best_ar_err = compute_err(bb_image['AR'], bb_mesh['AR'])
+    best_rotation = mesh_obj.rotation_euler.z
     print('Aspect ratio in the image: ' + str(bb_image['AR']))
     print('Aspect ratio of mesh: ' + str(bb_mesh['AR']))
-    print('Aspect ratio error: ' + str(ar_err))
-    if ar_err > MAX_ERR:
-        if (np.linalg.inv(camera.matrix_world) @ mesh_obj.matrix_world)[0][3] > 0:
-            mesh_obj.rotation_euler.z -= radians(90)
-            print("Error is greater than threshold ("+str(MAX_ERR)+"). " + f"{mesh_obj.name} rotated of -90")
-        else:
-            mesh_obj.rotation_euler.z += radians(90)
-            print("Error is greater than threshold ("+str(MAX_ERR)+"). " + f"{mesh_obj.name} rotated of +90")
-        
-        
+    print('Aspect ratio error: ' + str(best_ar_err))
+    
+    rotation_step = 0.01 # Radians
+    ran = ceil( pi / rotation_step )
+
+    # If the object is on the right we invert the rotation
+    if (np.linalg.inv(camera.matrix_world) @ mesh_obj.matrix_world)[0][3] > 0:
+        rotation_step = -rotation_step
+    
+    for i in range(ran):
+
+        bb_mesh = bb2D(context.scene, context.scene.camera, mesh_obj)
+        new_ar_err = compute_err(bb_image['AR'], bb_mesh['AR'])
+
+        if best_ar_err > new_ar_err:
+            best_ar_err = new_ar_err
+            best_rotation = mesh_obj.rotation_euler.z
+       
+        mesh_obj.rotation_euler.z += rotation_step
+    
+    # Set the best rotation as final rotation
+    mesh_obj.rotation_euler.z = best_rotation
+
+    print(f"Best aspect ratio error: {best_ar_err}\n"
+          f"Best rotation on Z axis: {best_rotation}\n")
+
 
     '''
     OLD METHOD (ITERATIVE)
