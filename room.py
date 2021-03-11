@@ -244,13 +244,31 @@ class RoomOperator(bpy.types.Operator):
                 
                 bpy.ops.wm.append(
                     directory=database_path,
-                    filename="entire_collection.blend\\Object\\dining table") #controlla per comodino
+                    filename="entire_collection.blend\\Object\\dining table",
+                    autoselect=True)    #controlla per comodino
 
-                bpy.ops.transform.translate(value=(pos[0],pos[1],objects[floating][2]-0.5)) 
+                bpy.ops.transform.translate(value=(pos[0],pos[1],-0.25)) 
                 print('Added a dining table below '+floating)
 
-
             i=i+1                           
+
+        for obj in bpy.context.scene.objects:
+            if obj.name.startswith(("chair","dining table","shelf","bedside table","bed")):
+                
+                if obj.location[0]+(obj.dimensions[0]/2) > greatest_x and not obj.name.startswith("shelf"):
+                            
+                    obj.location[0]= greatest_x - obj.dimensions[0]/2
+                    print('Moved '+obj.name+' to avoid collision with wall_x')
+
+                elif obj.location[0] > greatest_x and obj.name.startswith("shelf"):
+
+                    obj.location[0]= greatest_x 
+                    print('Moved '+obj.name+' to avoid collision with wall_x')
+
+                if obj.location[1]+(obj.dimensions[1]/2) > greatest_y:
+
+                    obj.location[1]= greatest_y - obj.dimensions[1]/2
+                    print('Moved '+obj.name+' to avoid collision with wall_y')
 
         bpy.ops.screen.animation_play()
         return {'FINISHED'}

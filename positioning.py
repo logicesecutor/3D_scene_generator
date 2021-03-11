@@ -3,6 +3,7 @@ import bmesh
 
 import os,io
 import time
+import random
 
 from math import pi,ceil, floor, radians, pow, sqrt
 from mathutils import Vector, Matrix
@@ -84,14 +85,20 @@ class PositioningOperator(bpy.types.Operator):
             # SEARCH FOR A MESH IN THE DATABASE WITH THE SAME LABEL
             # AND GIVE IT A PROPER BLENDER LIKE NAME
             mesh_name = bb_image["name"]
-            
+
+            if mesh_name=="plotted plant":
+                mesh_name=random.choice(("potted plant","plotted plant alt"))
+
+            if mesh_name=="chair":
+                mesh_name=random.choice(("chair","chair alt"))
+
             with bpy.data.libraries.load(database_path+"\\entire_collection.blend") as (data_from, data_to):
                 names = [name for name in data_from.collections]
 
             if mesh_name in names:
                 bpy.ops.wm.append(
                 directory=database_path,
-                filename="entire_collection.blend\\Collection\\"+bb_image["name"])
+                filename="entire_collection.blend\\Collection\\"+mesh_name)
 
                 # SELECT THE INSERTED MESH
                 if bb_image["name"] in occurences.keys():
@@ -99,7 +106,7 @@ class PositioningOperator(bpy.types.Operator):
                 else:
                     occurences[bb_image["name"]] = 0
                 
-                bpy.context.view_layer.objects.active = bpy.data.objects[bb_image["name"]]
+                bpy.context.view_layer.objects.active = bpy.data.objects[mesh_name]
                 mesh_obj = context.object
                 mesh_obj.name = f"{bb_image['name']}"+ ".%03d" % (occurences[bb_image["name"]])
 
