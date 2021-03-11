@@ -25,6 +25,8 @@ class VPDetectionOperator(bpy.types.Operator):
         from . import calibration
         from . import operator
         
+        print('\n---------- VP DETECTION ----------')
+
         ### Set TOP camera view and create background image #############################
         
         # Get the default image
@@ -209,7 +211,8 @@ class VPDetectionOperator(bpy.types.Operator):
         obj.select_set(True)
 
         ### Start camera calibration based on the rectangle (active object) #################
-        print('Calibrating camera...')
+        print('\n---------- CAMERA CALIBRATION ----------')
+        
         bpy.ops.camera.camera_calibration_fxy_pr_vv()
     
         bpy.ops.object.select_all(action='DESELECT')

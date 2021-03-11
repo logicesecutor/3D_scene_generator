@@ -602,7 +602,7 @@ def detect(imagepath):
     return meshes
 
 def generate_grass():
-    print('----------ROOM GENERATION----------')
+    print('\n----------GRASS GENERATION----------')
 
     ground_z = 0
     bpy.ops.object.select_all(action='DESELECT')
@@ -645,7 +645,7 @@ def generate_grass():
             bpy.ops.object.editmode_toggle()
             obj.select_set(False)
 
-    lowest_z = lowest_z - 0.1
+    ground_z = ground_z - 0.1
 
     #importo il pavimento, attento al percorso
     # Getting Current Working Directory
