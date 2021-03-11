@@ -1,5 +1,8 @@
 # 3D Scene Generator
 
+## Pre-trained Models
+   Download -> [link Google Drive](https://drive.google.com/file/d/1yxzH88Ya8jfh9ElombDD1Fkjpy7NEn30/view?usp=sharing)
+
 ## Abstract
 
 The aim of this project is to generate a 3D scene basing on a single input image.
