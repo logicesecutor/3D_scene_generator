@@ -95,17 +95,17 @@ class PositioningOperator(bpy.types.Operator):
             with bpy.data.libraries.load(database_path+"\\entire_collection.blend") as (data_from, data_to):
                 names = [name for name in data_from.collections]
 
+            if bb_image["name"] in occurences.keys():
+                occurences[bb_image["name"]] += 1
+            else:
+                occurences[bb_image["name"]] = 0
+
             if mesh_name in names:
                 bpy.ops.wm.append(
                 directory=database_path,
                 filename="entire_collection.blend\\Collection\\"+mesh_name)
 
                 # SELECT THE INSERTED MESH
-                if bb_image["name"] in occurences.keys():
-                    occurences[bb_image["name"]] += 1
-                else:
-                    occurences[bb_image["name"]] = 0
-                
                 bpy.context.view_layer.objects.active = bpy.data.objects[mesh_name]
                 mesh_obj = context.object
                 mesh_obj.name = f"{bb_image['name']}"+ ".%03d" % (occurences[bb_image["name"]])
@@ -126,9 +126,13 @@ class PositioningOperator(bpy.types.Operator):
                     print(f"Applied DECIMATE modifier with ratio of {ratio}")
             else:
                 bpy.ops.wm.append(
-                directory=database_path,
-                filename="entire_collection.blend\\Object\\empty box")
+                    directory=database_path,
+                    filename="entire_collection.blend\\Object\\empty box")
+
+                bpy.context.view_layer.objects.active = bpy.data.objects['empty box']
                 mesh_obj = context.object
+                mesh_obj.name = f"{bb_image['name']}"+ ".%03d" % (occurences[bb_image["name"]])
+
                 print('\n---------------  ' + bb_image["name"] + '  ---------------')
                 print('No ' + bb_image["name"] + ' meshes in db. Replaced it with an empty box.')
             
@@ -321,7 +325,7 @@ def pos_rotation(context, camera, mesh_obj, bb_image, MAX_ERR):
     print('Aspect ratio error: ' + str(best_ar_err))
     
     rotation_step = 0.01 # Radians
-    ran = ceil( pi / rotation_step )
+    ran = ceil( pi / (2*rotation_step) )
 
     # If the object is on the right we invert the rotation
     if (np.linalg.inv(camera.matrix_world) @ mesh_obj.matrix_world)[0][3] > 0:
