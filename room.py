@@ -7,6 +7,93 @@ from math import radians
 import collections
 import operator
 
+
+
+class Forniture():
+
+    MEDIUM_threshold = 0.7
+    HIGH_Threshold = 1.5
+
+    def __init__(self, obj, ground_z, objects, onWall, floating, support):
+
+        self.objRef = obj
+
+        self.onWall = onWall
+        self.isFloating = floating
+        self.support = support
+        self.high = self.defineObjHigh(ground_z)
+        self.near_objects = []
+        self.nearest_wall = []
+
+        if not self.support:
+            self.objAbove = []
+
+
+    def update(self, objects, walls, overlapping_radius):
+
+        self.near_objects = self.nearest_object_list(objects, overlapping_radius)
+        self.nearest_wall = self.nearest_wall_location(walls)
+        
+
+    def nearest_object_list(self, fornitures: Forniture, interaction_radius):
+        nearest=[]
+        for obj in fornitures:
+            if obj.objRef != self.objRef:
+                direction = self.objRef.location - obj.objRef.location
+                magnitude = direction.magnitude
+                if magnitude < interaction_radius:
+                    nearest.append(
+                        {
+                            "objRef": obj, 
+                            "magnitude": magnitude,
+                            "direction": direction,
+                        }
+                    )
+
+        # Actually I'm sorting from nearest to farther
+        nearest.sort(key= lambda x: x["magnitude"])
+
+        return nearest
+
+    
+    def isFree(self):
+        
+        if not self.support: 
+            print("Function not defined for this object")
+            return
+        
+        return len(self.objAbove) > 2
+
+
+
+
+    def collide(self):
+
+        return True if self.near_objects != [] else False
+
+
+    def nearest_wall_location(self, walls):
+
+        nearest_wall = float('inf')
+
+        for wall in walls:
+            dist = (wall.location - self.objRef.location).magnitude
+            if dist < nearest_wall:
+                nearest_wall = dist
+                save_wall = wall
+
+        return save_wall
+
+
+    def defineObjHigh(self, ground_z):
+
+        if self.objRef.location.z - ground_z > self.HIGH_Threshold:
+            return "h"
+        elif self.objRef.location.z - ground_z > self.MEDIUM_threshold:
+            return "m"
+        else:
+            return "l"
+
 class RoomOperator(bpy.types.Operator):
     bl_idname = "view3d.room"
     bl_label = "room generation"
@@ -132,20 +219,53 @@ class RoomOperator(bpy.types.Operator):
         bpy.ops.mesh.select_all(action='DESELECT')
         bpy.ops.object.mode_set(mode='OBJECT', toggle=False) #object
 
+
+        # New Version 
+        # ================================================================
+        print ('\nSearching for floating objects...')
+        # ================================================================
+
+        fornitures = []
+        for obj in bpy.context.scene.objects:
+            fornitures.append(
+                Forniture(obj,
+                          ground_z,
+                          onWall=obj.name.startswith(onWall_obj_category), 
+                          isFloating=obj.name.startswith(floating_obj_category), 
+                          support=obj.name.startswith(support_obj_category),
+                        )
+            )
+
         #creo tavolini e mensole sotto gli oggetti a mezz'aria, se non già presenti
         print ('\nSearching for floating objects...')
-        for obj in bpy.data.objects:
-            if not obj.name.startswith(("Camera","Light","bed","chair","dining table","toilet","shelf","bedside table","refrigerator","grass","blade","room","blanket","smoke")): 
+        for obj in fornitures:
+            if obj.isFloating:
                 
-                if (objects[obj.name])[2]-ground_z > 0.7 and (objects[obj.name])[2]-ground_z < 1.5:
-                    (objects[obj.name])[3] = 1 #will need a dining table/bedside table
+                if obj.high == "m":
+                    putSupport("table")  # FUTURE VERSIONS: LIST OF OBJECT WHICH CAN BE USED AS SUPPORT
                     print (str(obj.name)+' will need a dining table/bedside table')
-                elif (objects[obj.name])[2]-ground_z > 1.5:
-                    (objects[obj.name])[3] = 2 #will need a shelf
+                elif obj.high == "h":
+                    putSupport("shelf")
                     print (str(obj.name)+' will need a shelf')
                 else:
-                    objects.pop(obj.name)
+                    putSupport("ground")
                     print (str(obj.name)+' is close to the ground')
+
+                
+                
+
+            # for obj in bpy.data.objects:
+                # if not obj.name.startswith(("Camera","Light","bed","chair","dining table","toilet","shelf","bedside table","refrigerator","grass","blade","room","blanket","smoke")): 
+                
+                    # if obj.objRef.location.z - ground_z > 0.7 and (objects[obj.name])[2]-ground_z < 1.5:
+                    #     (objects[obj.name])[3] = 1 #will need a dining table/bedside table
+                    #     print (str(obj.name)+' will need a dining table/bedside table')
+                    # elif (objects[obj.name])[2]-ground_z > 1.5:
+                    #     (objects[obj.name])[3] = 2 #will need a shelf
+                    #     print (str(obj.name)+' will need a shelf')
+                    # else:
+                    #     objects.pop(obj.name)
+                    #     print (str(obj.name)+' is close to the ground')
 
 
         print ('\nSearching for surfaces below floating objects...')
@@ -154,6 +274,7 @@ class RoomOperator(bpy.types.Operator):
         for floating in objects:
             array[i] = objects[floating][2]
             i=i+1
+
         
         array.sort()
 
@@ -172,7 +293,7 @@ class RoomOperator(bpy.types.Operator):
                     topbb = computeExternVert(obj,'GLOBAL',room_orient,True)
                     print(obj.name +' topbb: '+str(topbb))
                 
-                    if pos[0]<topbb[0] and pos[0]>topbb[2] and pos[1]>topbb[3] and pos[1]<topbb[1]: #vertice più alto
+                    if pos[0]<topbb[0] and pos[0]>topbb[2] and pos[1]>topbb[3] and pos[1]<topbb[1] and objects[floating][3] < 2: #vertice più alto
                         objects[floating][3]=0
                         print (str(floating)+' has already a '+str(obj.name)+' below. Set not floating')
                         break
@@ -272,6 +393,59 @@ class RoomOperator(bpy.types.Operator):
 
         bpy.ops.screen.animation_play()
         return {'FINISHED'}
+
+
+def putSupport(type: str, fornitures: list, ground_z, forniture: Forniture, walls):
+    """
+    Take the obj and try to put it on a object avoiding collision between objects
+    If an object to be putted on a shelf has collisions
+    search for nearest object which have a support attribute.
+    If not put a support avoiding collision
+    """
+    # Between the nearest objects find if someone is a support and if have free space available 
+    forniture.nearest_object_list()
+
+    find = False
+    for obj in forniture.near_objects:
+        if obj.isSupport and obj.isFree:
+            forniture.objRef.location = obj.objRef.location + offset_z
+            find = True
+            break
+
+    if not find:
+
+        if type == "shelf":
+            supporter = createShelf()
+        elif type == "table":
+            supporter = createTable()
+        else:
+            supporter = createOther()
+        
+        newSupport = Forniture(supporter, ground_z, fornitures, True, True, True)
+        newSupport.objRef.location = newSupport.nearest_wall_location(walls)
+        newSupport.nearest_object_list(interaction_radius)
+
+        if newSupport.collide():
+            final_dir = Vector((.0, .0, .0))
+            for obj in newSupport.near_objects:
+                final_dir += obj["direction"]
+            
+            # Computed final direction and move the object enough, in that direction, 
+            # to push away the nearest object
+            newSupport.objRef.location += final_dir.normalize() * (interaction_radius - newSupport.near_objects[0]["magnitude"])
+            newSupport.objAbove.append(forniture)
+
+            #TODO: veryfy if the new position excede the walls boundary
+            #.....
+
+        else:
+            forniture.objRef.location = newSupport.objRef.location + offset_z
+            newSupport.objAbove.append(forniture)
+
+    fornitures.append(newSupport)
+
+
+
 
 def computeExternVert(obj, space, room_orient, surface):
     # edit mode per selezionare vertici

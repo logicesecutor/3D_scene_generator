@@ -18,7 +18,7 @@ from threading import Thread
 
 from imageai.Detection import ObjectDetection
 
-class PositioningOperator(bpy.types.Operator):
+class PositioningOperator(bpy.types.Operator, Thread):
     bl_idname = "view3d.object_positioning"
     bl_label = "object positioning"
     bl_description = "Automatic object recognition and positioning."
