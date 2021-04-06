@@ -137,7 +137,7 @@ class RoomOperator(bpy.types.Operator):
         for obj in bpy.data.objects:
             if not obj.name.startswith(("Camera","Light","bed","chair","dining table","toilet","shelf","bedside table","refrigerator","grass","blade","room","blanket","smoke")): 
                 
-                if (objects[obj.name])[2]-ground_z > 0.7 and (objects[obj.name])[2]-ground_z < 1.5:
+                if (objects[obj.name])[2]-ground_z > 0.45 and (objects[obj.name])[2]-ground_z < 1.5:
                     (objects[obj.name])[3] = 1 #will need a dining table/bedside table
                     print (str(obj.name)+' will need a dining table/bedside table')
                 elif (objects[obj.name])[2]-ground_z > 1.5:
@@ -172,7 +172,7 @@ class RoomOperator(bpy.types.Operator):
                     topbb = computeExternVert(obj,'GLOBAL',room_orient,True)
                     print(obj.name +' topbb: '+str(topbb))
                 
-                    if pos[0]<topbb[0] and pos[0]>topbb[2] and pos[1]>topbb[3] and pos[1]<topbb[1]: #vertice più alto
+                    if pos[0]<topbb[0] and pos[0]>topbb[2] and pos[1]>topbb[3] and pos[1]<topbb[1] and objects[floating][3] < 2: #vertice più alto
                         objects[floating][3]=0
                         print (str(floating)+' has already a '+str(obj.name)+' below. Set not floating')
                         break

@@ -11,6 +11,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 from PIL import Image
 import numpy as np
+import cv2
 
 from .depth_prediction import deptPredictionThread
 
@@ -42,7 +43,7 @@ class PositioningOperator(bpy.types.Operator):
         # Max aspect ratio error
         MAX_ERR = 0.01 # 1%
         # Max vertices in a mesh before apply decimate modifier
-        MAX_N_VERTICES = 5000
+        MAX_N_VERTICES = 15000
         # List to store all meshes BB data
         meshes = []
         occurences = {}
@@ -86,11 +87,11 @@ class PositioningOperator(bpy.types.Operator):
             # AND GIVE IT A PROPER BLENDER LIKE NAME
             mesh_name = bb_image["name"]
 
-            if mesh_name=="plotted plant":
-                mesh_name=random.choice(("potted plant","plotted plant alt"))
-
-            if mesh_name=="chair":
-                mesh_name=random.choice(("chair","chair alt"))
+            if mesh_name=="potted plant" and bb_image["AR"] > 0.75:
+                mesh_name = "potted plant alt"
+            
+            if mesh_name=="chair" and bb_image["AR"] < 0.5 :
+                mesh_name = "chair alt"
 
             with bpy.data.libraries.load(database_path+"\\entire_collection.blend") as (data_from, data_to):
                 names = [name for name in data_from.collections]
@@ -111,6 +112,10 @@ class PositioningOperator(bpy.types.Operator):
                 mesh_obj.name = f"{bb_image['name']}"+ ".%03d" % (occurences[bb_image["name"]])
 
                 print('\n---------------  '+mesh_obj.name+'  ---------------')
+
+                # GIVE A CONSISTENT COLOR TO THE MESH
+                print(bb_image)
+                setColor(mesh_obj, bb_image['name']+" base",bb_image['X'],bb_image['Y'], cv2.imread(imagepath))
                 
                 # NUMBER OF VERTICES IN A MESH
                 n_vrt = len(mesh_obj.data.vertices.items())
@@ -148,8 +153,10 @@ class PositioningOperator(bpy.types.Operator):
                 pos_location_oneshot(context, mesh_obj, bb_image, camera_dir)
 
                 #bb_mesh = bb2D(scene, camera, mesh_obj)  #va fatto ora perchè gli oggetti sono nel frustum 
-
-                pos_rotation(context, camera, mesh_obj, bb_image, MAX_ERR)
+                if (not mesh_obj.name.startswith(("potted plant","wine glass","vase"))):
+                    pos_rotation(context, camera, mesh_obj.name, bb_image, MAX_ERR)
+                else:
+                    print('This object is simmetrical. Will not predict rotation.')
 
                 camera_obj_dir = (mesh_obj.location - camera.location).normalized()
                 
@@ -178,6 +185,11 @@ class PositioningOperator(bpy.types.Operator):
             log.info(f"Render done and saved in: {cwd}")
 
         generate_grass()
+
+        bpy.ops.object.select_all(action='DESELECT')
+
+        # DISABLE DECIMATE MODIFIER
+
 
         return {'FINISHED'}
 
@@ -312,11 +324,12 @@ def compute_err(ideal_value, computed_value):
     return abs(ideal_value - computed_value) / ideal_value
 
 
-def pos_rotation(context, camera, mesh_obj, bb_image, MAX_ERR):
+def pos_rotation(context, camera, mesh_name, bb_image, MAX_ERR):
 
     # POSITIONING -----> ROTATION
     # ar_  = aspect ratio
-    
+    mesh_obj = bpy.data.objects[mesh_name]
+
     bb_mesh = bb2D(context.scene, context.scene.camera, mesh_obj)
     best_ar_err = compute_err(bb_image['AR'], bb_mesh['AR'])
     best_rotation = mesh_obj.rotation_euler.z
@@ -328,26 +341,56 @@ def pos_rotation(context, camera, mesh_obj, bb_image, MAX_ERR):
     ran = ceil( pi / (2*rotation_step) )
 
     # If the object is on the right we invert the rotation
+    
     if (np.linalg.inv(camera.matrix_world) @ mesh_obj.matrix_world)[0][3] > 0:
         rotation_step = -rotation_step
+    
+
+    print('\nRotation step: '+str(rotation_step)+'\n')
     
     for i in range(ran):
 
         bb_mesh = bb2D(context.scene, context.scene.camera, mesh_obj)
         new_ar_err = compute_err(bb_image['AR'], bb_mesh['AR'])
 
+        print('New error: '+ str(new_ar_err))
+
         if best_ar_err > new_ar_err:
             best_ar_err = new_ar_err
             best_rotation = mesh_obj.rotation_euler.z
-       
-        mesh_obj.rotation_euler.z += rotation_step
+            print(f"\nFound better aspect ratio error: {best_ar_err}\n"
+            f"Found better rotation on Z axis: {best_rotation}\n")
     
+        if (abs(mesh_obj.rotation_euler.z)>=0.35 and mesh_obj.name.startswith(("bed","toilet","refrigerator","dining table","shelf","bedside table","tv"))):
+            mesh_obj.rotation_euler.z = 1.22 if rotation_step > 0 else -1.22
+            #salto i minimi locali che sporcano la stima
+        else:
+            mesh_obj.rotation_euler.z = mesh_obj.rotation_euler.z + rotation_step
+        print('Trying '+ str(mesh_obj.rotation_euler.z) +' ...')
+        
     # Set the best rotation as final rotation
-    mesh_obj.rotation_euler.z = best_rotation
+    print(f"Final aspect ratio error: {best_ar_err}\n"
+            f"Final rotation on Z axis: {best_rotation}\n")
+    
+    mesh_obj.rotation_euler.z = best_rotation 
 
-    print(f"Best aspect ratio error: {best_ar_err}\n"
-          f"Best rotation on Z axis: {best_rotation}\n")
-
+    if (mesh_obj.name.startswith(("bed","toilet","refrigerator","dining table","shelf","bedside table","tv"))):
+        if(abs(best_rotation) >= 0 and abs(best_rotation) < pi/4):
+            mesh_obj.rotation_euler.z = 0 
+        elif(abs(best_rotation) >= pi/4 and abs(best_rotation) < (3/4) * pi):
+            mesh_obj.rotation_euler.z = pi/2 if rotation_step > 0 else (-1/2) * pi
+        elif(abs(best_rotation) >= (3/4) * pi and abs(best_rotation) < (5/4) * pi):
+            mesh_obj.rotation_euler.z = pi if rotation_step > 0 else -1 * pi
+        else:
+            mesh_obj.rotation_euler.z = (3/2) * pi if rotation_step > 0 else (-3/2) * pi
+        '''
+        if abs(best_rotation) > (pi / 4) :
+            mesh_obj.rotation_euler.z = (-1) * pi / 2 if rotation_step<0 else pi / 2
+        else:
+            mesh_obj.rotation_euler.z = 0
+        '''
+        print('This object is supposed to be aligned with the room. Snapping '+ str(best_rotation) + ' to ' + str(mesh_obj.rotation_euler.z) +'\n')
+        # If the object is supposed to be aligned with the room, just try 0 and 90°
 
     '''
     OLD METHOD (ITERATIVE)
@@ -596,8 +639,13 @@ def detect(imagepath):
             probability = eachObject["percentage_probability"]
             box_points = eachObject["box_points"]
 
+            print(name+' --------------')
             width = box_points[2]-box_points[0]
+            print("2dbb width =" +str(box_points[2])+"-"+str(box_points[0])+"="+str(width))
             height = box_points[3]-box_points[1]
+            print("2dbb height =" +str(box_points[3])+"-"+str(box_points[1])+"="+str(height))
+            print("2dbb center x =" + str(box_points[0] + width * 0.5))
+            print("2dbb center y =" + str(box_points[1] + height * 0.5))
 
             meshes.append({ "name": name,   
                             "X": box_points[0] + width * 0.5,
@@ -703,3 +751,46 @@ def computeExternVert(obj, space, room_orient):
 
     #ritorno i vertici esterni
     return [x,y,z]
+
+def setColor(obj, material_name, x, y, image):
+    
+    found = False
+    i = 0
+    
+    for material in bpy.data.objects[obj.name].data.materials:
+        if(material_name in material.name):
+            material_name = material.name
+            found = True
+            break 
+        else:
+            i = i + 1
+
+    if(found):
+
+        x = round(x)
+        y = round(y)
+        print('Color pick coordinates: '+str(x)+' - '+str(y))
+        B = image.item(y,x,0)/255
+        G = image.item(y,x,1)/255
+        R = image.item(y,x,2)/255
+        print('Found color ----\nR: '+str(R)+'\nG: '+str(G)+'\nB: '+str(B))
+
+        bpy.context.object.active_material_index = i
+        bpy.data.objects[obj.name].active_material = bpy.data.materials[material_name].copy()
+        newMat = bpy.context.object.active_material
+        newMat.node_tree.nodes["RGB"].outputs[0].default_value=(R,G,B,0)
+
+        if (material_name == "bed base"):
+            blanket_obj = getChildren(obj) 
+            bpy.data.objects[blanket_obj.name].active_material = newMat            
+
+        print('Colorized.')
+
+    else:
+        print('Using default color for this object.')
+
+def getChildren(myObject): 
+    for ob in bpy.data.objects: 
+        if ob.parent == myObject: 
+            if "blanket" in ob.name:
+                return ob 
