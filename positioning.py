@@ -31,7 +31,7 @@ class PositioningOperator(bpy.types.Operator):
         RENDER=False
     
         # Getting Current Working Directory
-        cwd = os.getcwd()
+        cwd = os.path.dirname(os.path.realpath(__file__))
         database_path = f"{cwd}/Mesh database"  
         imagepath = bpy.context.scene['image_filepath']
         # Default location of object spawn
