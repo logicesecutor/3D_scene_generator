@@ -522,7 +522,7 @@ def predict(imagepath):
     # import tensorflow.compat.v1 as tf
     # tf.disable_v2_behavior()
     
-    cwd = os.getcwd()
+    cwd = os.path.dirname(os.path.realpath(__file__))
 
     # RELATIVE PATH
     model_data_path = f"{cwd}/trained_model/NYU_FCRN.ckpt"
@@ -573,7 +573,7 @@ def predict(imagepath):
 
 
 def detect(imagepath):
-    cwd = os.getcwd()
+    cwd = os.path.dirname(os.path.realpath(__file__))
 
     meshes = []
 
@@ -660,7 +660,7 @@ def generate_grass():
 
     #importo il pavimento, attento al percorso
     # Getting Current Working Directory
-    cwd = os.getcwd()
+    cwd = os.path.dirname(os.path.realpath(__file__))
     database_path = f"{cwd}/Mesh database"  
 
     bpy.ops.wm.append(
