@@ -36,7 +36,7 @@ class Forniture():
     def collision_object_list(self, fornitures):
         nearest=[]
         for obj in fornitures:
-            if obj.objRef != self.objRef and obj.objRef not in self.objAbove:
+            if obj.objRef != self.objRef and obj not in self.objAbove:
                 direction = self.objRef.location - obj.objRef.location
                 magnitude = direction.magnitude
                 if magnitude < self.collision_radius:
@@ -297,8 +297,8 @@ def putSupport(type: str, fornitures: list, ground_z, walls: list, forniture: Fo
         f = obj["fornitureRef"]
         if f.support and f.isFree():
             
-            forniture.objRef.location.xy = f.objRef.location.xy
-            forniture.objRef.location.z = f.objRef.location.z + max(forniture.objRef.dimensions) * 0.5
+            forniture.objRef.location = f.objRef.location
+            forniture.objRef.location.z += (f.objRef.dimensions.z + forniture.objRef.dimensions.z) * 0.5
             f.objAbove.append(forniture)
             forniture.isFloating = False
 
@@ -355,29 +355,28 @@ def putSupport(type: str, fornitures: list, ground_z, walls: list, forniture: Fo
     if newSupport.onWall:
         # TODO: Generalize the wall positioning for every walls in the space
         if abs(forniture.objRef.location.x - walls[0].x) < abs(forniture.objRef.location.y - walls[1].y):
+            
             bpy.ops.transform.translate(value=(walls[0].x, 
                                                 forniture.objRef.location.y, 
-                                                forniture.objRef.location.z - max(forniture.objRef.dimensions) * 0.5))
+                                                forniture.objRef.location.z - forniture.objRef.dimensions.z * 0.5))
             
-            # forniture.objRef.location.xy = newSupport.objRef.location.xy
-            # forniture.objRef.location.x -= max(forniture.objRef.dimensions) * 0.5
+            forniture.objRef.location.x = newSupport.objRef.location.x - forniture.objRef.dimensions.y * 0.5
 
         else:
             bpy.ops.transform.translate(value=(forniture.objRef.location.x, 
                                                 walls[1].y, 
-                                                forniture.objRef.location.z - max(forniture.objRef.dimensions) * 0.5))
+                                                forniture.objRef.location.z - forniture.objRef.dimensions.z * 0.5))
             bpy.ops.transform.rotate(value=radians(-90), constraint_axis=(False, False, True))
             
-            # forniture.objRef.location.xy = newSupport.objRef.location.xy
-            # forniture.objRef.location.y -= max(forniture.objRef.dimensions) * 0.5
-
+            forniture.objRef.location.y = newSupport.objRef.location.y - forniture.objRef.dimensions.y * 0.5
+    
     else:
-        newSupport.objRef.location.xy = forniture.objRef.location.xy
-        newSupport.objRef.location.z -=  max(forniture.objRef.dimensions) * 0.5 
+        newSupport.objRef.location = forniture.objRef.location
+        newSupport.objRef.location.z -= (newSupport.objRef.dimensions.z + forniture.objRef.dimensions.z) * 0.5 
 
-    forniture.isFloating = False
 
     newSupport.objAbove.append(forniture)
+    forniture.isFloating = False
 
     # TODO: PARENTING
     #bpy.ops.transform.translate(value=(forniture.objRef.location.x, forniture.objRef.location.y, forniture.objRef.location.z - 0.5) )
