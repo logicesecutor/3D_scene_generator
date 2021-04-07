@@ -8,7 +8,6 @@ import collections
 import operator
 
 
-
 class Forniture():
 
     MEDIUM_threshold = 0.7
@@ -25,27 +24,27 @@ class Forniture():
 
         self.collision_objects = []
         self.interaction_objects = []
-        self.collision_radius = max(obj.dimensions * 0.5) * 1.2
-        self.interaction_radius = max(obj.dimensions * 0.5) * 5
+        self.collision_radius = max(obj.dimensions) * 0.5 * 1.2
+        self.interaction_radius = 2 # max(obj.dimensions) * 0.5 * 5
 
         self.nearest_wall = None
 
-        if not self.support:
+        if self.support:
             self.objAbove = []
 
         
     def collision_object_list(self, fornitures):
         nearest=[]
         for obj in fornitures:
-            if obj.objRef != self.objRef:
+            if obj.objRef != self.objRef and obj.objRef not in self.objAbove:
                 direction = self.objRef.location - obj.objRef.location
                 magnitude = direction.magnitude
-                if magnitude < self.colllision_radius:
+                if magnitude < self.collision_radius:
                     nearest.append(
                         {
                             "fornitureRef": obj, 
                             "magnitude": magnitude,
-                            "direction": direction,
+                            "direction": direction.normalized(),
                         }
                     )
         # Actually I'm sorting from nearest to farther
@@ -66,7 +65,7 @@ class Forniture():
                         {
                             "fornitureRef": obj, 
                             "magnitude": magnitude,
-                            "direction": direction,
+                            "direction": direction.normalize(),
                         }
                     )
 
@@ -82,9 +81,7 @@ class Forniture():
             print("Function not defined for this object")
             return
         
-        return len(self.objAbove) > 2
-
-
+        return len(self.objAbove) < 2
 
 
     def collide(self):
@@ -251,7 +248,7 @@ class RoomOperator(bpy.types.Operator):
         walls = [Vector((greatest_x, 0, 0)), Vector((0, greatest_y, 0))]
     
         non_floating_obj_category = ("Camera","Light","bed","chair","dining table","toilet","shelf","bedside table","refrigerator","grass","blade","room","blanket","smoke")
-        onWall_obj_category = ("television", "shelf")
+        onWall_obj_category = ("tv", "shelf")
         support_obj_category = ("bed", "chair", "dining table", "grass", "ground", "bedside table")
 
         fornitures = []
@@ -271,7 +268,7 @@ class RoomOperator(bpy.types.Operator):
         for obj in fornitures:
             if obj.isFloating:
                 if obj.high == "m":
-                    support = "table"
+                    support = "dining table"
                     print (str(obj.objRef.name)+' will need a dining table/bedside table')
 
                 elif obj.high == "h":
@@ -283,147 +280,6 @@ class RoomOperator(bpy.types.Operator):
 
                 putSupport(support, fornitures, ground_z, walls, obj, database_path, occurrencies)  # FUTURE VERSIONS: LIST OF OBJECT WHICH CAN BE USED AS SUPPORT
 
-                
-                
-
-            # for obj in bpy.data.objects:
-                # if not obj.name.startswith(("Camera","Light","bed","chair","dining table","toilet","shelf","bedside table","refrigerator","grass","blade","room","blanket","smoke")): 
-                
-                    # if obj.objRef.location.z - ground_z > 0.7 and (objects[obj.name])[2]-ground_z < 1.5:
-                    #     (objects[obj.name])[3] = 1 #will need a dining table/bedside table
-                    #     print (str(obj.name)+' will need a dining table/bedside table')
-                    # elif (objects[obj.name])[2]-ground_z > 1.5:
-                    #     (objects[obj.name])[3] = 2 #will need a shelf
-                    #     print (str(obj.name)+' will need a shelf')
-                    # else:
-                    #     objects.pop(obj.name)
-                    #     print (str(obj.name)+' is close to the ground')
-
-
-        # print ('\nSearching for surfaces below floating objects...')
-        # array=[None]*len(objects)
-        # i=0
-        # for floating in objects:
-        #     array[i] = objects[floating][2]
-        #     i=i+1
-
-        
-        # array.sort()
-
-        # i=0
-        # while i<len(objects):
-
-        #     floating=getFloatingObject(array[i],objects)
-
-        #     pos=bpy.data.objects[floating].location
-        #     print('\n'+floating +' position: '+str(pos))
-            
-        #     for obj in bpy.context.scene.objects:
-        #         if obj.name.startswith(("chair","dining table","shelf","bedside table","bed")):
-        #         #Controllo che non siano già sotto gli oggetti a mezz'aria, altrimenti li aggiungo
-
-        #             topbb = computeExternVert(obj,'GLOBAL',room_orient,True)
-        #             print(obj.name +' topbb: '+str(topbb))
-                
-        #             if pos[0]<topbb[0] and pos[0]>topbb[2] and pos[1]>topbb[3] and pos[1]<topbb[1] and objects[floating][3] < 2: #vertice più alto
-        #                 objects[floating][3]=0
-        #                 print (str(floating)+' has already a '+str(obj.name)+' below. Set not floating')
-        #                 break
-            
-        #     bpy.ops.object.mode_set(mode='OBJECT', toggle=False) #object
-        #     bpy.ops.object.select_all(action='DESELECT')
-
-        #     if objects[floating][3]==2:
-
-        #         if pos[0]-greatest_x < pos[1]-greatest_y:
-                    
-        #             if not floating.startswith("tv"):
-
-        #                 bpy.ops.wm.append(
-        #                     directory=database_path,
-        #                     filename="entire_collection.blend\\Object\\shelf")
-
-        #                 bpy.ops.transform.rotate(value=radians(90), constraint_axis=(False, False, True))
-        #                 bpy.ops.transform.translate(value=(greatest_x,pos[1],objects[floating][2]-0.5))
-                        
-        #                 bpy.data.objects[floating].location[0] = greatest_x-0.3
-
-        #                 print ('Added a shelf below '+str(floating))
-
-        #             else:
-                        
-        #                 bpy.ops.wm.append(
-        #                         directory=database_path,
-        #                         filename="entire_collection.blend\\Collection\\tv alt")
-
-        #                 bpy.ops.transform.translate(value=(pos[0],greatest_y-0.1,pos[2]))
-
-        #                 bpy.ops.object.select_all(action='DESELECT')
-        #                 bpy.data.objects[floating].select_set(True)
-        #                 bpy.ops.object.delete()
-                        
-        #                 print ('Moved tv to the wall')
-                    
-        #         else:
-
-        #             if not floating.startswith("tv"):
-
-        #                 bpy.ops.wm.append(
-        #                     directory=database_path,
-        #                     filename="entire_collection.blend\\Object\\shelf")
-
-        #                 bpy.ops.transform.translate(value=(pos[0],greatest_y,objects[floating][2]-0.5))
-
-        #                 bpy.data.objects[floating].location[1] = greatest_y-0.3
-                        
-        #                 print ('Added a shelf below '+str(floating))
-                    
-        #             else:
-
-        #                 bpy.ops.wm.append(
-        #                         directory=database_path,
-        #                         filename="entire_collection.blend\\Collection\\tv alt")
-
-        #                 bpy.ops.transform.rotate(value=radians(90), constraint_axis=(False, False, True))
-        #                 bpy.ops.transform.translate(value=(greatest_x-0.1,pos[1],pos[2]))
-
-        #                 bpy.ops.object.select_all(action='DESELECT')
-        #                 bpy.data.objects[floating].select_set(True)
-        #                 bpy.ops.object.delete()
-                        
-        #                 print ('Moved tv to the wall')
-                    
-        #     elif objects[floating][3]==1:
-                
-        #         bpy.ops.wm.append(
-        #             directory=database_path,
-        #             filename="entire_collection.blend\\Object\\dining table",
-        #             autoselect=True)    #controlla per comodino
-
-        #         bpy.ops.transform.translate(value=(pos[0],pos[1],objects[floating][2]-0.25)) 
-        #         print('Added a dining table below '+floating)
-
-        #     i=i+1                           
-
-        # for obj in bpy.context.scene.objects:
-        #     if obj.name.startswith(("chair","dining table","shelf","bedside table","bed")):
-                
-        #         if obj.location[0]+(obj.dimensions[0]/2) > greatest_x and not obj.name.startswith("shelf"):
-                            
-        #             obj.location[0]= greatest_x - obj.dimensions[0]/2
-        #             print('Moved '+obj.name+' to avoid collision with wall_x')
-
-        #         elif obj.location[0] > greatest_x and obj.name.startswith("shelf"):
-
-        #             obj.location[0]= greatest_x 
-        #             print('Moved '+obj.name+' to avoid collision with wall_x')
-
-        #         if obj.location[1]+(obj.dimensions[1]/2) > greatest_y:
-
-        #             obj.location[1]= greatest_y - obj.dimensions[1]/2
-        #             print('Moved '+obj.name+' to avoid collision with wall_y')
-
-        bpy.ops.screen.animation_play()
         return {'FINISHED'}
 
 
@@ -436,97 +292,114 @@ def putSupport(type: str, fornitures: list, ground_z, walls: list, forniture: Fo
     """
     # Between the nearest objects find if someone is a support and if have free space available 
     forniture.nearest_object_list(fornitures)
-
-    find = False
+    
     for obj in forniture.interaction_objects:
         f = obj["fornitureRef"]
         if f.support and f.isFree():
-
-            forniture.objRef.location.z = f.objRef.location.z + 0.5
+            
+            forniture.objRef.location.xy = f.objRef.location.xy
+            forniture.objRef.location.z = f.objRef.location.z + max(forniture.objRef.dimensions) * 0.5
             f.objAbove.append(forniture)
             forniture.isFloating = False
 
-            find = True
-            break
-
-    if not find:
-
-        bpy.ops.object.select_all(action='DESELECT')
-
-        if type == "shelf":
-            onWall = True
-            floating = False
-
-            bpy.ops.wm.append(
-                            directory=database_path,
-                            filename="entire_collection.blend\\Object\\shelf",
-                            )
-            
-            bpy.ops.transform.rotate(value=radians(90), constraint_axis=(False, False, True))
-
-        elif type == "table":
-            onWall = True
-            floating = False
-
-            bpy.ops.wm.append(
-                            directory=database_path,
-                            filename="entire_collection.blend\\Object\\dining table",
-                            )
-            
-        elif type=="ground":
-            print("Putted on the ground")
-            forniture.isFloating=False
             return
-        else:
-            print("TBI supporter = createOther()")
-            return
+
+
+    bpy.ops.object.select_all(action='DESELECT')
+
+    if type == "shelf":
+        onWall = True
+        floating = False
+
+        bpy.ops.wm.append(
+                        directory=database_path,
+                        filename="entire_collection.blend\\Object\\" + type,
+                        )
+
+    elif type == "dining table":
+        onWall = False
+        floating = False
+
+        bpy.ops.wm.append(
+                        directory=database_path,
+                        filename="entire_collection.blend\\Object\\" + type,
+                        )
         
-
-        # Retrieve the object Reference
-        if type in occurrencies.keys():
-            occurrencies[type] += 1
-        else:
-            occurrencies[type] = 0
-
-
-        bpy.context.view_layer.objects.active = bpy.data.objects[type]
-        ref = bpy.context.object
-        ref.name = f"{type}"+ ".%03d" % (occurrencies[type])
-
-        # Wrapping the new support in a forniture class
-        bpy.ops.transform.rotate(value=radians(90), constraint_axis=(False, False, True))
-        if forniture.objRef.location.x - greatest_x < forniture.objRef.location.y - greatest_y:
-            bpy.ops.transform.translate(value=(walls[0].x, forniture.objRef.location.y, forniture.objRef.location.z - 0.5))
-        else:
-            bpy.ops.transform.translate(value=(forniture.objRef.location.y, walls[1].y , forniture.objRef.location.z - 0.5))
         
-        # TODO: PARENTING
-        #bpy.ops.transform.translate(value=(forniture.objRef.location.x, forniture.objRef.location.y, forniture.objRef.location.z - 0.5) )
+    elif type=="ground":
+        print("Putted on the ground")
+        forniture.isFloating=False
+        return
+    else:
+        print("TBI supporter = createOther()")
+        return
+    
 
-        newSupport = Forniture( ref, ground_z, onWall, floating, True)
+    # Retrieve object Reference
+    if type in occurrencies.keys():
+        occurrencies[type] += 1
+    else:
+        occurrencies[type] = 0
 
-        #newSupport.nearest_wall_location(walls)
-        #newSupport.nearest_object_list(fornitures)
-        newSupport.collision_object_list(fornitures)
 
-        #wall = forniture.objRef.location.dot(newSupport.nearest_wall)
-        
-        if newSupport.collide():
-            final_dir = Vector((.0, .0, .0))
-            for obj in newSupport.collision_objects:
-                final_dir += obj["direction"]
+    bpy.context.view_layer.objects.active = bpy.data.objects[type]
+    ref = bpy.context.object
+    ref.name = f"{type}"+ ".%03d" % (occurrencies[type])
+
+    bpy.ops.transform.rotate(value=radians(90), constraint_axis=(False, False, True))
+
+    # Wrapping the new support in a forniture class
+    newSupport = Forniture( ref, ground_z, onWall, floating, True)
+    
+    # Put on the wall only if the support need to be attached to the wall
+    if newSupport.onWall:
+        # TODO: Generalize the wall positioning for every walls in the space
+        if abs(forniture.objRef.location.x - walls[0].x) < abs(forniture.objRef.location.y - walls[1].y):
+            bpy.ops.transform.translate(value=(walls[0].x, 
+                                                forniture.objRef.location.y, 
+                                                forniture.objRef.location.z - max(forniture.objRef.dimensions) * 0.5))
             
-            # Computed final direction and move the object enough, in that direction, 
-            # to push away the nearest object
-            newSupport.objRef.location += final_dir.normalize() * (interaction_radius - newSupport.near_objects[0]["magnitude"])
-            newSupport.objAbove.append(forniture)
-
-            #TODO: veryfy if the new position excede the walls boundary
-            #.....
+            # forniture.objRef.location.xy = newSupport.objRef.location.xy
+            # forniture.objRef.location.x -= max(forniture.objRef.dimensions) * 0.5
 
         else:
-            forniture.objRef.location = newSupport.objRef.location + 0.5
-            newSupport.objAbove.append(forniture)
+            bpy.ops.transform.translate(value=(forniture.objRef.location.x, 
+                                                walls[1].y, 
+                                                forniture.objRef.location.z - max(forniture.objRef.dimensions) * 0.5))
+            bpy.ops.transform.rotate(value=radians(-90), constraint_axis=(False, False, True))
+            
+            # forniture.objRef.location.xy = newSupport.objRef.location.xy
+            # forniture.objRef.location.y -= max(forniture.objRef.dimensions) * 0.5
+
+    else:
+        newSupport.objRef.location.xy = forniture.objRef.location.xy
+        newSupport.objRef.location.z -=  max(forniture.objRef.dimensions) * 0.5 
+
+    forniture.isFloating = False
+
+    newSupport.objAbove.append(forniture)
+
+    # TODO: PARENTING
+    #bpy.ops.transform.translate(value=(forniture.objRef.location.x, forniture.objRef.location.y, forniture.objRef.location.z - 0.5) )
+
+    # Computing the collision after the support positioning
+    newSupport.collision_object_list(fornitures)
+
+    if newSupport.collide():
+        final_dir = Vector((.0, .0, .0))
+        for obj in newSupport.collision_objects:
+            final_dir += obj["direction"]
+        
+        # Computed final direction and move the object enough, in that direction, 
+        # to push away the nearest object
+        final_dir = final_dir * (newSupport.collision_radius - newSupport.collision_objects[0]["magnitude"])
+        # Update the support position and each object above it
+        newSupport.objRef.location += final_dir
+        for obj in newSupport.objAbove:
+            obj.objRef.location += final_dir
+
+        #TODO: veryfy if the new position excede the walls boundary
+        #.....
 
     fornitures.append(newSupport)
 
