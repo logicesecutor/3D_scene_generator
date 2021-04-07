@@ -29,14 +29,17 @@ class Forniture():
 
         self.nearest_wall = None
 
-        if self.support:
-            self.objAbove = []
+        self.objAbove = []
 
         
     def collision_object_list(self, fornitures):
         nearest=[]
         for obj in fornitures:
-            if obj.objRef != self.objRef and obj not in self.objAbove:
+            if obj.objRef != self.objRef:
+                if (self.support and obj in self.objAbove):
+                # or (not self.support and obj.support and self in obj.objAbove):
+                   continue
+
                 direction = self.objRef.location - obj.objRef.location
                 magnitude = direction.magnitude
                 if magnitude < self.collision_radius:
@@ -47,6 +50,7 @@ class Forniture():
                             "direction": direction.normalized(),
                         }
                     )
+
         # Actually I'm sorting from nearest to farther
         nearest.sort(key= lambda x: x["magnitude"])
 
@@ -279,6 +283,27 @@ class RoomOperator(bpy.types.Operator):
                     print (str(obj.objRef.name)+' is close to the ground')
 
                 putSupport(support, fornitures, ground_z, walls, obj, database_path, occurrencies)  # FUTURE VERSIONS: LIST OF OBJECT WHICH CAN BE USED AS SUPPORT
+        
+        # Resolve collision on each support
+        for forniture in fornitures:
+            if forniture.support:
+                for obj in forniture.objAbove:
+                    obj.collision_object_list(fornitures)
+                    if obj.collide():
+                        final_dir = Vector((.0, .0, .0))
+                        for coll in obj.collision_objects:
+                            final_dir += coll["direction"]
+                        
+                        # Computed final direction and move the object enough, in that direction, 
+                        # to push away the nearest object
+                        final_dir = final_dir * (obj.collision_radius - obj.collision_objects[0]["magnitude"])
+                        # Update the support position and each object above it
+                        obj.objRef.location += final_dir
+
+
+        for obj in bpy.data.objects:
+            obj.lock_location=(True, True, False)
+            obj.lock_rotation=(True, True, True)
 
         return {'FINISHED'}
 
@@ -299,6 +324,9 @@ def putSupport(type: str, fornitures: list, ground_z, walls: list, forniture: Fo
             
             forniture.objRef.location = f.objRef.location
             forniture.objRef.location.z += (f.objRef.dimensions.z + forniture.objRef.dimensions.z) * 0.5
+            if f.objRef.name.startswith("shelf"):
+                forniture.objRef.location.y -= f.objRef.dimensions.y * 0.5
+
             f.objAbove.append(forniture)
             forniture.isFloating = False
 
@@ -353,7 +381,7 @@ def putSupport(type: str, fornitures: list, ground_z, walls: list, forniture: Fo
     
     # Put on the wall only if the support need to be attached to the wall
     if newSupport.onWall:
-        # TODO: Generalize the wall positioning for every walls in the space
+        # TODO: Generalize walls positioning for every walls in the space
         if abs(forniture.objRef.location.x - walls[0].x) < abs(forniture.objRef.location.y - walls[1].y):
             
             bpy.ops.transform.translate(value=(walls[0].x, 
@@ -365,7 +393,9 @@ def putSupport(type: str, fornitures: list, ground_z, walls: list, forniture: Fo
         else:
             bpy.ops.transform.translate(value=(forniture.objRef.location.x, 
                                                 walls[1].y, 
-                                                forniture.objRef.location.z - forniture.objRef.dimensions.z * 0.5))
+                                                forniture.objRef.location.z - forniture.objRef.dimensions.z * 0.5)
+                                        )
+
             bpy.ops.transform.rotate(value=radians(-90), constraint_axis=(False, False, True))
             
             forniture.objRef.location.y = newSupport.objRef.location.y - forniture.objRef.dimensions.y * 0.5
