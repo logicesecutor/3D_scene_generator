@@ -29,9 +29,6 @@ class VPDetectionOperator(bpy.types.Operator):
 
         ### Set TOP camera view and create background image #############################
         
-        # Get the default image
-        img = 'D:\\(D)Files\\Politecnico\\Polito\\Grafica\\Progetto\\AddOn\\test_image.jpg'
-
         # Get the image path
         cwd = os.getcwd()
         
@@ -43,6 +40,8 @@ class VPDetectionOperator(bpy.types.Operator):
         database_path = f"{cwd}/Mesh database" 
 
         # Preparing the view
+
+        bpy.data.cameras['Camera'].background_images.clear()
 
         bpy.ops.view3d.view_axis(type='TOP', align_active=False, relative=False)
         

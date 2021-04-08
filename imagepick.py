@@ -20,14 +20,14 @@ class ImagePick(bpy.types.Operator):
         context.window_manager.fileselect_add(self)
         return {'RUNNING_MODAL'}
  
-    def draw(self, context):
-        layout = self.layout
-        col = layout.column()
-        col.label(text="Custom Interface!")
+    # def draw(self, context):
+    #     layout = self.layout
+    #     col = layout.column()
+    #     col.label(text="Custom Interface!")
  
-        row = col.row()
-        row.prop(self, "my_float")
-        row.prop(self, "my_bool")
+    #     row = col.row()
+    #     row.prop(self, "my_float")
+    #     row.prop(self, "my_bool")
  
-        col.prop(self, "my_string")
+    #     col.prop(self, "my_string")
  

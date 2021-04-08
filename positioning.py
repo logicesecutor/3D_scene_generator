@@ -337,7 +337,7 @@ def pos_rotation(context, camera, mesh_name, bb_image, MAX_ERR):
     print('Aspect ratio of mesh: ' + str(bb_mesh['AR']))
     print('Aspect ratio error: ' + str(best_ar_err))
     
-    rotation_step = 0.01 # Radians
+    rotation_step = 0.05 # Radians
     ran = ceil( pi / (2*rotation_step) )
 
     # If the object is on the right we invert the rotation
@@ -350,23 +350,24 @@ def pos_rotation(context, camera, mesh_name, bb_image, MAX_ERR):
     
     for i in range(ran):
 
-        bb_mesh = bb2D(context.scene, context.scene.camera, mesh_obj)
-        new_ar_err = compute_err(bb_image['AR'], bb_mesh['AR'])
-
-        print('New error: '+ str(new_ar_err))
-
-        if best_ar_err > new_ar_err:
-            best_ar_err = new_ar_err
-            best_rotation = mesh_obj.rotation_euler.z
-            print(f"\nFound better aspect ratio error: {best_ar_err}\n"
-            f"Found better rotation on Z axis: {best_rotation}\n")
-    
-        if (abs(mesh_obj.rotation_euler.z)>=0.35 and mesh_obj.name.startswith(("bed","toilet","refrigerator","dining table","shelf","bedside table","tv"))):
-            mesh_obj.rotation_euler.z = 1.22 if rotation_step > 0 else -1.22
+        if (abs(mesh_obj.rotation_euler.z) >= 0.35 and abs(mesh_obj.rotation_euler.z) <= 1.22 and mesh_obj.name.startswith(("bed","toilet","refrigerator","dining table","shelf","bedside table","tv"))):
+            mesh_obj.rotation_euler.z = mesh_obj.rotation_euler.z + rotation_step
+            continue
             #salto i minimi locali che sporcano la stima
         else:
+            bb_mesh = bb2D(context.scene, context.scene.camera, mesh_obj)
+            new_ar_err = compute_err(bb_image['AR'], bb_mesh['AR'])
+
+            print('New error: '+ str(new_ar_err))
+
+            if best_ar_err > new_ar_err:
+                best_ar_err = new_ar_err
+                best_rotation = mesh_obj.rotation_euler.z
+                print(f"\nFound better aspect ratio error: {best_ar_err}\n"
+                f"Found better rotation on Z axis: {best_rotation}\n")
+        
             mesh_obj.rotation_euler.z = mesh_obj.rotation_euler.z + rotation_step
-        print('Trying '+ str(mesh_obj.rotation_euler.z) +' ...')
+            print('Trying '+ str(mesh_obj.rotation_euler.z) +' ...')
         
     # Set the best rotation as final rotation
     print(f"Final aspect ratio error: {best_ar_err}\n"

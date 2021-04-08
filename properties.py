@@ -1,5 +1,4 @@
 import bpy
-
 class CameraCalibrationPVRProperties(bpy.types.PropertyGroup):
     image : bpy.props.PointerProperty(type = bpy.types.Object,
                                       name = "Image",

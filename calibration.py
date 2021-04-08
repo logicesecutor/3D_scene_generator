@@ -15,8 +15,6 @@ def solvefocal(context,image_obj):
     from . import transformation
     from . import solverectangle
     from . import scene
-    from . import onepoint
-    from . import twopoint
     from . import threepoint
 
     # Get the camere of the scene

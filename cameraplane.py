@@ -1,26 +1,3 @@
-# Blender Plugin: Camera Calibration with Perspective Views of Rectangles
-# Copyright (C) 2017  Marco Rossini
-#
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# version 2 as published by the Free Software Foundation.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
-
-# This Blender plugin is based on the research paper "Recovery of Intrinsic
-# and Extrinsic Camera Parameters Using Perspective Views of Rectangles" by
-# T. N. Tan, G. D. Sullivan and K. D. Baker, Department of Computer Science,
-# The University of Reading, Berkshire RG6 6AY, UK, Email: T.Tan@reading.ac.uk,
-# from the Proceedings of the British Machine Vision Conference, published by
-# the BMVA Press.
-
 from math import pi
 import mathutils
 from . import algebra
@@ -60,16 +37,16 @@ def is_collinear(v1, v2):
     # Test the angle
     return abs(v1.angle(v2)) < limit
 
-def is_trapezoid(pa, pb, pc, pd):
-    """Determines whether the polygon with the vertices pa, pb, pc, pd is a trapezoid"""
-    return is_collinear(pb - pa, pc - pd) or is_collinear(pd - pa, pc - pb)
+# def is_trapezoid(pa, pb, pc, pd):
+#     """Determines whether the polygon with the vertices pa, pb, pc, pd is a trapezoid"""
+#     return is_collinear(pb - pa, pc - pd) or is_collinear(pd - pa, pc - pb)
 
-def is_trapezoid_but_not_rectangle(pa, pb, pc, pd):
-    """Determines whether the polygon with the vertices pa, pb, pc, pd is a trapezoid"""
-    a = is_collinear(pb - pa, pc - pd)
-    b = is_collinear(pd - pa, pc - pb)
-    # Exclusive OR
-    return a != b
+# def is_trapezoid_but_not_rectangle(pa, pb, pc, pd):
+#     """Determines whether the polygon with the vertices pa, pb, pc, pd is a trapezoid"""
+#     a = is_collinear(pb - pa, pc - pd)
+#     b = is_collinear(pd - pa, pc - pb)
+#     # Exclusive OR
+#     return a != b
 
 def is_to_the_right(a, b, c):
     """Checks whether the rotation angle from vector AB to vector BC is between 0 and 180 degrees when rotating to the right. Returns a number."""
