@@ -296,7 +296,7 @@ class RoomOperator(bpy.types.Operator):
                         
                         # Computed final direction and move the object enough, in that direction, 
                         # to push away the nearest object
-                        final_dir = final_dir * (obj.collision_radius - obj.collision_objects[0]["magnitude"])
+                        final_dir = final_dir * (obj.collision_radius - (obj.collision_objects[0]["fornitureRef"].collision_radius + obj.collision_objects[0]["magnitude"]))
                         # Update the support position and each object above it
                         obj.objRef.location += final_dir
 
