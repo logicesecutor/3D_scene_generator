@@ -4,6 +4,7 @@ import os
 from mathutils import Matrix
 from mathutils import Vector
 from math import radians, sin
+import numpy as np
 import collections
 import operator
 
@@ -13,63 +14,65 @@ class Forniture():
     MEDIUM_threshold = 0.7
     HIGH_Threshold = 1.5
 
-    def __init__(self, obj, ground_z, onWall, floating, support):
+    def __init__(self, obj, ground_z, onWall, floating):
 
         self.objRef = obj
 
         self.onWall = onWall
         self.isFloating = floating
-        self.support = support
+        
         self.high = self.defineObjHigh(ground_z)
 
         self.collision_objects = []
         self.interaction_objects = []
+
+        # Consider a sphere around the object with a radius of an half the max dimension length
         self.collision_radius = max(obj.dimensions) * 0.5 * 1.2
-        self.interaction_radius = 2 # max(obj.dimensions) * 0.5 * 5
+        self.interaction_radius = 1 # METERS
 
         self.nearest_wall = None
 
-        self.objAbove = []
-
         
     def collision_object_list(self, fornitures):
-        nearest=[]
+
+        collisions = []
+
         for obj in fornitures:
             if obj.objRef != self.objRef:
-                if (self.support and obj in self.objAbove):
-                # or (not self.support and obj.support and self in obj.objAbove):
-                   continue
 
                 direction = self.objRef.location - obj.objRef.location
                 magnitude = direction.magnitude
-                if magnitude < self.collision_radius:
-                    nearest.append(
+                dist = self.collision_radius + obj.collision_radius - magnitude
+
+                if dist > 0:
+                    
+                    collisions.append(
                         {
                             "fornitureRef": obj, 
                             "magnitude": magnitude,
-                            "direction": direction.normalized(),
+                            "direction": direction.normalized() * dist,
                         }
                     )
 
-        # Actually I'm sorting from nearest to farther
-        nearest.sort(key= lambda x: x["magnitude"])
-
-        self.collision_objects = nearest
+        self.collision_objects = collisions
 
 
-    def nearest_object_list(self, fornitures):
+    def near_object_list(self, fornitures):
         nearest=[]
         for obj in fornitures:
             if obj.objRef != self.objRef:
+
                 direction = self.objRef.location - obj.objRef.location
                 magnitude = direction.magnitude
-                if magnitude < self.interaction_radius:
+                dist = self.interaction_radius + obj.interaction_radius - magnitude
+
+                if  magnitude < self.interaction_radius + obj.interaction_radius:
                     
                     nearest.append(
                         {
                             "fornitureRef": obj, 
                             "magnitude": magnitude,
-                            "direction": direction.normalize(),
+                            "direction": direction,
                         }
                     )
 
@@ -78,19 +81,9 @@ class Forniture():
 
         self.interaction_objects = nearest
 
-    
-    def isFree(self):
-        
-        if not self.support: 
-            print("Function not defined for this object")
-            return
-        
-        return len(self.objAbove) < 2
-
 
     def collide(self):
-
-        return self.collision_objects != []
+        return len(self.collision_objects) != 0
 
 
     def nearest_wall_location(self, walls):
@@ -108,6 +101,19 @@ class Forniture():
         self.nearest_wall = save_wall
 
 
+    def solveCollision(self, fornitures):
+        camera = bpy.context.scene.camera
+        self.collision_object_list(fornitures)
+
+        if self.collide():
+            final_dir = Vector((.0, .0, .0))
+            for obj in self.collision_objects:
+                final_dir += obj["direction"]
+            # if (np.linalg.inv(camera.matrix_world) @ self.objRef.matrix_world)[0][3] > 0:
+            #     self.objRef.location.x += self.overlapping * 2
+            # else
+
+
     def defineObjHigh(self, ground_z):
 
         if self.objRef.location.z - ground_z > self.HIGH_Threshold:
@@ -116,6 +122,143 @@ class Forniture():
             return "m"
         else:
             return "l"
+
+
+class Support(Forniture):
+
+    def __init__(self, obj, ground_z, onWall, floating):
+        super().__init__(obj, ground_z, onWall, floating)
+        self.objAbove = [] 
+
+        self.whatWall = None
+
+        # If is near to the Y wall
+        if self.objRef.dimensions.x > self.objRef.dimensions.y:
+            dim_x = self.objRef.dimensions.x * 0.25
+
+            self.availableLocation = [
+                Vector((dim_x, 0, 0)),
+                Vector((-dim_x, 0, 0)),
+                ]
+        else:
+            dim_y = self.objRef.dimensions.y * 0.25
+
+            self.availableLocation = [
+                Vector((0, dim_y, 0)),
+                Vector((0, -dim_y, 0)),
+                ]
+
+    def setWall(self, whatWall):
+        self.whatWall = whatWall
+        if whatWall =='y':
+            # If is near to the Y wall
+            if self.objRef.dimensions.x > self.objRef.dimensions.y:
+                dim_x = self.objRef.dimensions.x * 0.25
+
+                self.availableLocation = [
+                    Vector((dim_x, 0, 0)),
+                    Vector((-dim_x, 0, 0)),
+                    ]
+            else:
+                dim_y = self.objRef.dimensions.y * 0.25
+
+                self.availableLocation = [
+                    Vector((0, dim_y, 0)),
+                    Vector((0, -dim_y, 0)),
+                    ]
+        else:
+            # If is near to the X wall
+            if self.objRef.dimensions.x > self.objRef.dimensions.y:
+                dim_x = self.objRef.dimensions.x * 0.25
+
+                self.availableLocation = [
+                    Vector((0, dim_x, 0)),
+                    Vector((0, -dim_x, 0)),
+                    ]
+            else:
+                dim_y = self.objRef.dimensions.y * 0.25
+
+                self.availableLocation = [
+                    Vector((dim_y, 0, 0)),
+                    Vector((-dim_y, 0, 0)),
+                    ]
+
+
+    def putObjectAbove(self, forniture):
+        forniture.objRef.location = self.objRef.location
+        forniture.objRef.location += self.availableLocation.pop()
+
+        # Setting the forniture on support and not floating anymore
+        self.objAbove.append(forniture)
+        forniture.isFloating = False
+
+
+    def isFree(self):
+        return len(self.availableLocation) > 0
+
+    def divide(self):
+
+        # TODO: find a general way to subdivide a mesh surface
+        pass
+
+
+    def collision_object_list(self, fornitures):
+        
+        collisions = []
+
+        for obj in fornitures:
+            if obj.objRef != self.objRef:
+
+                if obj in self.objAbove:
+                    continue
+
+                direction = self.objRef.location - obj.objRef.location
+                magnitude = direction.magnitude
+                dist = self.collision_radius + obj.collision_radius - magnitude
+
+                if dist > 0:
+                    
+                    collisions.append(
+                        {
+                            "fornitureRef": obj, 
+                            "magnitude": magnitude,
+                            "direction": direction.normalized() * dist,
+                        }
+                    )
+
+
+        self.collision_objects = collisions
+
+
+
+    def solveCollision(self, fornitures, walls=None):
+
+        self.collision_object_list(fornitures)
+
+        if self.collide():
+            final_dir = Vector((.0, .0, .0))
+            for obj in self.collision_objects:
+                final_dir += obj["direction"]
+        
+            # Computed final direction and move the object enough, in that direction, 
+            # to push away the nearest object
+            # final_dir = final_dir * (newSupport.collision_radius - newSupport.collision_objects[0]["magnitude"])
+
+            # Update the support position and each object above it
+            self.objRef.location += final_dir
+            for obj in self.objAbove:
+                obj.objRef.location += final_dir
+
+        #TODO: veryfy if the new position excede the walls boundary
+        #.....
+        if walls:
+            for w in walls:
+                pass
+
+
+
+#======================================================================================================
+    
 
 class RoomOperator(bpy.types.Operator):
     bl_idname = "view3d.room"
@@ -247,7 +390,6 @@ class RoomOperator(bpy.types.Operator):
         # New Version 
         # ================================================================
         print ('\nSearching for floating objects...')
-        # ================================================================
 
         walls = [Vector((greatest_x, 0, 0)), Vector((0, greatest_y, 0))]
     
@@ -256,18 +398,20 @@ class RoomOperator(bpy.types.Operator):
         support_obj_category = ("bed", "chair", "dining table", "grass", "ground", "bedside table")
 
         fornitures = []
+
+        # Wrapping each objects in a forniture class which contains useful information
+        # in order to easly position them in the scene
         for obj in bpy.context.scene.objects:
             if not obj.name.startswith(non_floating_obj_category):
                 fornitures.append(
                     Forniture(obj,
                             ground_z,
                             onWall=obj.name.startswith(onWall_obj_category), 
-                            floating= not obj.name.startswith(non_floating_obj_category), 
-                            support= obj.name.startswith(support_obj_category),
+                            floating= not obj.name.startswith(non_floating_obj_category),
                             )
                 )
 
-        #creo tavolini e mensole sotto gli oggetti a mezz'aria, se non già presenti
+        # Creo tavolini e mensole sotto gli oggetti a mezz'aria, se non già presenti
         print ('\nSearching for floating objects...')
         for obj in fornitures:
             if obj.isFloating:
@@ -284,22 +428,7 @@ class RoomOperator(bpy.types.Operator):
 
                 putSupport(support, fornitures, ground_z, walls, obj, database_path, occurrencies)  # FUTURE VERSIONS: LIST OF OBJECT WHICH CAN BE USED AS SUPPORT
         
-        # Resolve collision on each support
-        for forniture in fornitures:
-            if forniture.support:
-                for obj in forniture.objAbove:
-                    obj.collision_object_list(fornitures)
-                    if obj.collide():
-                        final_dir = Vector((.0, .0, .0))
-                        for coll in obj.collision_objects:
-                            final_dir += coll["direction"]
-                        
-                        # Computed final direction and move the object enough, in that direction, 
-                        # to push away the nearest object
-                        final_dir = final_dir * (obj.collision_radius - (obj.collision_objects[0]["fornitureRef"].collision_radius + obj.collision_objects[0]["magnitude"]))
-                        # Update the support position and each object above it
-                        obj.objRef.location += final_dir
-
+        # ================================================================
 
         for obj in bpy.data.objects:
             obj.lock_location=(True, True, False)
@@ -315,24 +444,24 @@ def putSupport(type: str, fornitures: list, ground_z, walls: list, forniture: Fo
     search for nearest object which have a support attribute.
     If not put a support avoiding collision
     """
-    # Between the nearest objects find if someone is a support and if have free space available 
-    forniture.nearest_object_list(fornitures)
-    
-    for obj in forniture.interaction_objects:
-        f = obj["fornitureRef"]
-        if f.support and f.isFree():
-            
-            forniture.objRef.location = f.objRef.location
-            forniture.objRef.location.z += (f.objRef.dimensions.z + forniture.objRef.dimensions.z) * 0.5
-            if f.objRef.name.startswith("shelf"):
-                forniture.objRef.location.y -= f.objRef.dimensions.y * 0.5
+    # For non support objects find a support and if he have free space available
+    # put the forniture above that support
+    if not isinstance(forniture, Support):
 
-            f.objAbove.append(forniture)
-            forniture.isFloating = False
+        # Update the near objects list
+        forniture.near_object_list(fornitures)
 
-            return
+        for obj in [f for f in forniture.interaction_objects if isinstance(f['fornitureRef'], Support)]:
+            support = obj["fornitureRef"]
+            if support.isFree():
+                
+                support.putObjectAbove(forniture)
+                # Put the forniture ABOVE the support
+                forniture.objRef.location.z += (support.objRef.dimensions.z + forniture.objRef.dimensions.z) * 0.5
 
+                return
 
+    # Deselecting and importing the new support mesh from the database
     bpy.ops.object.select_all(action='DESELECT')
 
     if type == "shelf":
@@ -358,10 +487,11 @@ def putSupport(type: str, fornitures: list, ground_z, walls: list, forniture: Fo
         print("Putted on the ground")
         forniture.isFloating=False
         return
+
     else:
         print("TBI supporter = createOther()")
         return
-    
+
 
     # Retrieve object Reference
     if type in occurrencies.keys():
@@ -369,67 +499,49 @@ def putSupport(type: str, fornitures: list, ground_z, walls: list, forniture: Fo
     else:
         occurrencies[type] = 0
 
-
     bpy.context.view_layer.objects.active = bpy.data.objects[type]
     ref = bpy.context.object
     ref.name = f"{type}"+ ".%03d" % (occurrencies[type])
 
-    bpy.ops.transform.rotate(value=radians(90), constraint_axis=(False, False, True))
-
-    # Wrapping the new support in a forniture class
-    newSupport = Forniture( ref, ground_z, onWall, floating, True)
+    
+    # Wrapping the new support in a Support class
+    newSupport = Support( ref, ground_z, onWall, floating)
     
     # Put on the wall only if the support need to be attached to the wall
     if newSupport.onWall:
-        # TODO: Generalize walls positioning for every walls in the space
+        # TODO: Generalize walls positioning for every walls in the space. SEE nearest_wall_location() in Forniture Class.
         if abs(forniture.objRef.location.x - walls[0].x) < abs(forniture.objRef.location.y - walls[1].y):
             
-            bpy.ops.transform.translate(value=(walls[0].x, 
+            bpy.ops.transform.translate(value=(walls[0].x,
                                                 forniture.objRef.location.y, 
-                                                forniture.objRef.location.z - forniture.objRef.dimensions.z * 0.5))
-            
-            forniture.objRef.location.x = newSupport.objRef.location.x - forniture.objRef.dimensions.y * 0.5
+                                                forniture.objRef.location.z
+                                            )
+                                        )
+            newSupport.setWall('x')
 
         else:
+            bpy.ops.transform.rotate(value=radians(-90), constraint_axis=(False, False, True))
+
             bpy.ops.transform.translate(value=(forniture.objRef.location.x, 
                                                 walls[1].y, 
-                                                forniture.objRef.location.z - forniture.objRef.dimensions.z * 0.5)
+                                                forniture.objRef.location.z
+                                            )
                                         )
-
-            bpy.ops.transform.rotate(value=radians(-90), constraint_axis=(False, False, True))
-            
-            forniture.objRef.location.y = newSupport.objRef.location.y - forniture.objRef.dimensions.y * 0.5
+            newSupport.setWall('y')
     
     else:
         newSupport.objRef.location = forniture.objRef.location
-        newSupport.objRef.location.z -= (newSupport.objRef.dimensions.z + forniture.objRef.dimensions.z) * 0.5 
 
+    
+    newSupport.putObjectAbove(forniture)
+    # Put the support UNDER the forniture
+    newSupport.objRef.location.z -= (newSupport.objRef.dimensions.z + forniture.objRef.dimensions.z) * 0.5
 
-    newSupport.objAbove.append(forniture)
-    forniture.isFloating = False
+    # TODO: TRY WITH PARENTING
+    #...
 
-    # TODO: PARENTING
-    #bpy.ops.transform.translate(value=(forniture.objRef.location.x, forniture.objRef.location.y, forniture.objRef.location.z - 0.5) )
-
-    # Computing the collision after the support positioning
-    newSupport.collision_object_list(fornitures)
-
-    if newSupport.collide():
-        final_dir = Vector((.0, .0, .0))
-        for obj in newSupport.collision_objects:
-            final_dir += obj["direction"]
-        
-        # Computed final direction and move the object enough, in that direction, 
-        # to push away the nearest object
-        final_dir = final_dir * (newSupport.collision_radius - newSupport.collision_objects[0]["magnitude"])
-        # Update the support position and each object above it
-        newSupport.objRef.location += final_dir
-        for obj in newSupport.objAbove:
-            obj.objRef.location += final_dir
-
-        #TODO: veryfy if the new position excede the walls boundary
-        #.....
-
+    # Computing the collision between support and other objects except objects above it after the support positioning
+    newSupport.solveCollision(fornitures)
     fornitures.append(newSupport)
 
 
