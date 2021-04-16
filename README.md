@@ -23,8 +23,8 @@ To install the add-on:
 Inside the add-on Zip, all files must not be inside an another child folder. 
 
 ## Pre-trained Models
-   Download -> [link Google Drive](https://drive.google.com/file/d/1yxzH88Ya8jfh9ElombDD1Fkjpy7NEn30/view?usp=sharing)\n
-   Put them under the add-on main folder
+   Download -> [link Google Drive](https://drive.google.com/file/d/1yxzH88Ya8jfh9ElombDD1Fkjpy7NEn30/view?usp=sharing)
+Put them under the add-on main folder
 
 ## Abstract
 
