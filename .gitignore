@@ -4,6 +4,15 @@ __pycache__/
 *$py.class
 *.pyc
 
+# Image and data files
+*.jpg
+*.dat
+*.png
+*.log
+
+# Specific files
+imageDetails.txt
+
 # C extensions
 *.so
 

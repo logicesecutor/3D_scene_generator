@@ -20,6 +20,13 @@ class Forniture():
 
         self.onWall = onWall
         self.isFloating = floating
+
+        self.max_x = max(bb[0] for bb in obj.bound_box)
+        self.min_x = min(bb[0] for bb in obj.bound_box)
+        self.max_y = max(bb[1] for bb in obj.bound_box)
+        self.min_y = min(bb[1] for bb in obj.bound_box)
+        self.max_z = max(bb[2] for bb in obj.bound_box)
+        self.min_z = min(bb[2] for bb in obj.bound_box)
         
         self.high = self.defineObjHigh(ground_z)
 
@@ -195,6 +202,7 @@ class Support(Forniture):
 
     def isFree(self):
         return len(self.availableLocation) > 0
+        
 
     def divide(self):
 
@@ -355,6 +363,7 @@ class RoomOperator(bpy.types.Operator):
 
         room_obj=bpy.context.scene.objects["room"]
         bpy.context.view_layer.objects.active = room_obj
+
         #porto il pavimento alla z minima
         bpy.ops.transform.translate(value=(0, 0, ground_z))
 
@@ -375,14 +384,25 @@ class RoomOperator(bpy.types.Operator):
         room_edges[2 if room_orient[0]==True else 0].select = True
         bpy.ops.object.mode_set(mode='EDIT', toggle=False) #edit
         bpy.ops.transform.translate(value=(wall_x, -0, -0), constraint_axis=(True, False, False), mirror=True)
-        bpy.ops.mesh.extrude_region_move(MESH_OT_extrude_region={"use_normal_flip":False, "mirror":False}, TRANSFORM_OT_translate={"value":(0, 0, 5), "orient_type":'GLOBAL', "orient_matrix":((1, 0, 0), (0, 1, 0), (0, 0, 1)), "orient_matrix_type":'GLOBAL', "constraint_axis":(False, False, True), "mirror":False, "use_proportional_edit":False, "proportional_edit_falloff":'SMOOTH', "proportional_size":1, "use_proportional_connected":False, "use_proportional_projected":False, "snap":False, "snap_target":'CLOSEST', "snap_point":(0, 0, 0), "snap_align":False, "snap_normal":(0, 0, 0), "gpencil_strokes":False, "cursor_transform":False, "texture_space":False, "remove_on_cancel":False, "release_confirm":False, "use_accurate":False})
+        bpy.ops.mesh.extrude_region_move(MESH_OT_extrude_region={"use_normal_flip":False, "mirror":False}, TRANSFORM_OT_translate={"value":(0, 0, 3.5), "orient_type":'GLOBAL', "orient_matrix":((1, 0, 0), (0, 1, 0), (0, 0, 1)), "orient_matrix_type":'GLOBAL', "constraint_axis":(False, False, True), "mirror":False, "use_proportional_edit":False, "proportional_edit_falloff":'SMOOTH', "proportional_size":1, "use_proportional_connected":False, "use_proportional_projected":False, "snap":False, "snap_target":'CLOSEST', "snap_point":(0, 0, 0), "snap_align":False, "snap_normal":(0, 0, 0), "gpencil_strokes":False, "cursor_transform":False, "texture_space":False, "remove_on_cancel":False, "release_confirm":False, "use_accurate":False})
         bpy.ops.mesh.select_all(action='DESELECT')
         bpy.ops.object.mode_set(mode='OBJECT', toggle=False) #object
         room_edges[3 if room_orient[1]==True else 1].select = True
         bpy.ops.object.mode_set(mode='EDIT', toggle=False) #edit
-        bpy.ops.mesh.extrude_region_move(MESH_OT_extrude_region={"use_normal_flip":False, "mirror":False}, TRANSFORM_OT_translate={"value":(0, 0, 5), "orient_type":'GLOBAL', "orient_matrix":((1, 0, 0), (0, 1, 0), (0, 0, 1)), "orient_matrix_type":'GLOBAL', "constraint_axis":(False, False, True), "mirror":False, "use_proportional_edit":False, "proportional_edit_falloff":'SMOOTH', "proportional_size":1, "use_proportional_connected":False, "use_proportional_projected":False, "snap":False, "snap_target":'CLOSEST', "snap_point":(0, 0, 0), "snap_align":False, "snap_normal":(0, 0, 0), "gpencil_strokes":False, "cursor_transform":False, "texture_space":False, "remove_on_cancel":False, "release_confirm":False, "use_accurate":False})
+        bpy.ops.mesh.extrude_region_move(MESH_OT_extrude_region={"use_normal_flip":False, "mirror":False}, TRANSFORM_OT_translate={"value":(0, 0, 3.5), "orient_type":'GLOBAL', "orient_matrix":((1, 0, 0), (0, 1, 0), (0, 0, 1)), "orient_matrix_type":'GLOBAL', "constraint_axis":(False, False, True), "mirror":False, "use_proportional_edit":False, "proportional_edit_falloff":'SMOOTH', "proportional_size":1, "use_proportional_connected":False, "use_proportional_projected":False, "snap":False, "snap_target":'CLOSEST', "snap_point":(0, 0, 0), "snap_align":False, "snap_normal":(0, 0, 0), "gpencil_strokes":False, "cursor_transform":False, "texture_space":False, "remove_on_cancel":False, "release_confirm":False, "use_accurate":False})
         bpy.ops.mesh.select_all(action='SELECT')
         bpy.ops.mesh.remove_doubles()
+        bpy.ops.mesh.select_all(action='DESELECT')
+
+        bpy.ops.object.mode_set(mode='OBJECT', toggle=False) #object
+
+        room_me.polygons[1].select = True
+        room_me.polygons[2].select = True
+
+        bpy.ops.object.mode_set(mode='EDIT', toggle=False) #edit
+
+        bpy.ops.object.material_slot_assign()
+
         bpy.ops.mesh.select_all(action='DESELECT')
         bpy.ops.object.mode_set(mode='OBJECT', toggle=False) #object
 
@@ -431,7 +451,7 @@ class RoomOperator(bpy.types.Operator):
         # ================================================================
 
         for obj in bpy.data.objects:
-            obj.lock_location=(True, True, False)
+            obj.lock_location=(False, False, False)
             obj.lock_rotation=(True, True, True)
 
         return {'FINISHED'}
@@ -512,7 +532,7 @@ def putSupport(type: str, fornitures: list, ground_z, walls: list, forniture: Fo
         # TODO: Generalize walls positioning for every walls in the space. SEE nearest_wall_location() in Forniture Class.
         if abs(forniture.objRef.location.x - walls[0].x) < abs(forniture.objRef.location.y - walls[1].y):
             
-            bpy.ops.transform.translate(value=(walls[0].x,
+            bpy.ops.transform.translate(value=(walls[0].x - newSupport.objRef.dimensions.x * 0.5,
                                                 forniture.objRef.location.y, 
                                                 forniture.objRef.location.z
                                             )
@@ -523,7 +543,7 @@ def putSupport(type: str, fornitures: list, ground_z, walls: list, forniture: Fo
             bpy.ops.transform.rotate(value=radians(-90), constraint_axis=(False, False, True))
 
             bpy.ops.transform.translate(value=(forniture.objRef.location.x, 
-                                                walls[1].y, 
+                                                walls[1].y - newSupport.objRef.dimensions.x * 0.5, 
                                                 forniture.objRef.location.z
                                             )
                                         )

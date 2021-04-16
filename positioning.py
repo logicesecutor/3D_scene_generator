@@ -54,6 +54,8 @@ class PositioningOperator(bpy.types.Operator):
         scene = context.scene
         camera = context.scene.camera
         
+        bpy.data.cameras["Camera"].lens = 18.2961
+        # bpy.data.cameras["Camera"].sensor_width = 32
         
         #CLEAR THE SCENE EXCEPT THE CAMERA, OBV
         for o in bpy.context.scene.objects:
@@ -64,7 +66,6 @@ class PositioningOperator(bpy.types.Operator):
 
         # Call the operator only once
         bpy.ops.object.delete()
-        
         
 
         # IMAGE-AI OBJECT DETECTION
@@ -143,10 +144,10 @@ class PositioningOperator(bpy.types.Operator):
             
             #=================================================================================================
             # OBJECT POSITIONING IN CAMERA VIEW
-            # TODO: FIND A WAY TO UNDERSTAND IF THE OBJECT IS IN A PROPRIATE
+            # TODO: FIND A WAY TO UNDERSTAND IF THE OBJECT IS IN AN CORRECT
             #       SCALE TO FIT THE CAMERA VIEW
             mesh_obj.location += camera_dir[2] * 10 # meters
-            camera_obj_origin_dist = (mesh_obj.location - camera.location).magnitude
+            #camera_obj_origin_dist = (mesh_obj.location - camera.location).magnitude
  
             try: 
                 
@@ -159,12 +160,18 @@ class PositioningOperator(bpy.types.Operator):
                     print('This object is simmetrical. Will not predict rotation.')
 
                 camera_obj_dir = (mesh_obj.location - camera.location).normalized()
+                camera_obj_origin_dist = (mesh_obj.location - camera.location).magnitude
                 
-                pos_depth_AI(context, mesh_obj, camera_obj_dir, camera_obj_origin_dist, pred_array)
+                pos_depth_AI(context, mesh_obj, 
+                            bb_image, camera_obj_dir, 
+                            camera_obj_origin_dist, 
+                            pred_array, 
+                            correction_factor=correction_factor(camera_dir, camera_obj_dir),
+                            mode="avg")
                 
             
-            except TypeError:
-
+            except TypeError as error:
+                print(error)
                 print(f"Object {mesh_obj.name} out of camera view. Can't compute Bounding Box.\n"
                     "Next Item.")
                 continue
@@ -198,17 +205,23 @@ def correction_factor(axis_mat, vector):
     
     #==============================
     # Angle on ZX camera plane
+    # v = vector.normalized()
+    # v.y = axis_mat[2].y
+    # costeta = axis_mat[2].dot(v)
+    
+    
+    # # Angle on YZ camera plane
+    # v = vector.normalized()
+    # v.x = axis_mat[2].x
+    # cosalfa = axis_mat[2].dot(v)
+
+    # Angle on XY camera plane
     v = vector.normalized()
-    v.y = axis_mat[2].y
-    costeta = axis_mat[2].dot(v)
-    
-    
-    # Angle on YZ camera plane
-    v = vector.normalized()
-    v.x = axis_mat[2].x
-    cosalfa = axis_mat[2].dot(v)
-    
-    return sqrt(pow(cosalfa, 2) + pow(costeta, 2) / (cosalfa * costeta))
+    v.z = bpy.context.scene.camera.location.z
+    cosbeta = axis_mat[2].dot(v)
+
+    return cosbeta 
+    #return sqrt(pow(cosalfa, 2) + pow(costeta, 2) / (cosalfa * costeta))
 
 
 def camera_dir_mat():
@@ -439,13 +452,13 @@ def pos_depth(context, mesh_obj, bb_image, camera_rot_vec, MAX_ERR):
     print(f"{mesh_obj.name} depth positioned -> Bounding Box area:: {bb_mesh['Area']}, error of:: {area_err}")
 
 
-def pos_depth_AI(context, mesh_obj, camera_obj_dir, camera_obj_origin_dist, pred, correction_factor=1, mode='avg'):
+def pos_depth_AI(context, mesh_obj, bb_image, camera_obj_dir, camera_obj_origin_dist, pred, correction_factor=1, mode='avg'):
     
-    bb_mesh = bb2D(context.scene, context.scene.camera, mesh_obj)
+    # bb_mesh = bb2D(context.scene, context.scene.camera, mesh_obj)
     
-    # Index mapping to correctly acces the numpy array 
-    x_old = bb_mesh["X"] - bb_mesh["Width"] * 0.5
-    y_old = bb_mesh["Y"] - bb_mesh["Height"] * 0.5
+    # # Index mapping to correctly acces the numpy array 
+    x_old = bb_image["X"] - bb_image["Width"] * 0.5
+    y_old = bb_image["Y"] - bb_image["Height"] * 0.5
     
     # Scale factor from low to high definition image
     scale_factor_x = len(pred[0,0,:]) / context.scene.render.resolution_x
@@ -454,8 +467,8 @@ def pos_depth_AI(context, mesh_obj, camera_obj_dir, camera_obj_origin_dist, pred
     x_new = floor(scale_factor_x * x_old)
     y_new = floor(scale_factor_y * y_old)
     
-    width_new = floor(bb_mesh["Width"] * scale_factor_x)
-    height_new = floor(bb_mesh["Height"] * scale_factor_y)
+    width_new = floor(bb_image["Width"] * scale_factor_x)
+    height_new = floor(bb_image["Height"] * scale_factor_y)
     
     if mode == 'center':
         # Distance vaule from the BB center
@@ -469,11 +482,15 @@ def pos_depth_AI(context, mesh_obj, camera_obj_dir, camera_obj_origin_dist, pred
         dist = np.average(pred[0, y_new : y_new+height_new, x_new : x_new+width_new, 0], weigth= weigth)
     else:
         print("Insert a correct mode: avg or w_avg or center")
+    
         
+    if np.isnan(dist):
+        dist = 5
+        print("Nan fault. Default distance %d"%(dist))
+
+    delta_depth = camera_obj_origin_dist - dist * correction_factor
     
-    delta_depth = (dist - camera_obj_origin_dist) * correction_factor
-    
-    mesh_obj.location += camera_obj_dir * delta_depth
+    mesh_obj.location -= camera_obj_dir * delta_depth
     
     print(f"Predicted distance: {dist}\n"
           f"Initial distance from camera: {camera_obj_origin_dist}\n"
