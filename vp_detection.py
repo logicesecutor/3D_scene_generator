@@ -356,7 +356,7 @@ class VPDetectionOperator(bpy.types.Operator):
 
         i=0
 
-        while room_orient[0] != True and room_orient[1] != True or i == 3:
+        while (room_orient[0] != True and room_orient[1] != True) or i >= 3:
             bpy.ops.transform.rotate(value=math.radians(90), orient_axis='Z')
             i = i+1
 

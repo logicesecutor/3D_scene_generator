@@ -2,8 +2,8 @@ import bpy
 
 class Test_PT_Panel(bpy.types.Panel):
     bl_idname = "Test_PT_Panel"
-    bl_label = "3D Positioning"
-    bl_category = "3D Positioning"
+    bl_label = "3D Scene Generator"
+    bl_category = "3D Scene Generator"
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI" 
 
