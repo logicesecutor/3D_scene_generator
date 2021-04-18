@@ -401,6 +401,7 @@ class RoomOperator(bpy.types.Operator):
 
         bpy.ops.object.mode_set(mode='EDIT', toggle=False) #edit
 
+        bpy.data.objects["room"].active_material_index = 0
         bpy.ops.object.material_slot_assign()
 
         bpy.ops.mesh.select_all(action='DESELECT')

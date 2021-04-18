@@ -16,6 +16,10 @@ imageDetails.txt
 # C extensions
 *.so
 
+# Blender files
+*.blend
+*.blend1
+
 # Distribution / packaging
 .Python
 build/

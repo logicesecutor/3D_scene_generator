@@ -362,4 +362,8 @@ class VPDetectionOperator(bpy.types.Operator):
 
         bpy.ops.transform.rotate(value=math.radians(90), orient_axis='Z')
 
+        ### Forcing the focal lenght that assure best results #################
+        bpy.data.cameras["Camera"].lens = 18.2961
+        # bpy.data.cameras["Camera"].sensor_width = 32
+
         return {'FINISHED'}

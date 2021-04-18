@@ -371,16 +371,16 @@ def pos_rotation(context, camera, mesh_name, bb_image, MAX_ERR):
             bb_mesh = bb2D(context.scene, context.scene.camera, mesh_obj)
             new_ar_err = compute_err(bb_image['AR'], bb_mesh['AR'])
 
-            print('New error: '+ str(new_ar_err))
+            #print('New error: '+ str(new_ar_err))
 
             if best_ar_err > new_ar_err:
                 best_ar_err = new_ar_err
                 best_rotation = mesh_obj.rotation_euler.z
-                print(f"\nFound better aspect ratio error: {best_ar_err}\n"
-                f"Found better rotation on Z axis: {best_rotation}\n")
+                #print(f"\nFound better aspect ratio error: {best_ar_err}\n"
+                #f"Found better rotation on Z axis: {best_rotation}\n")
         
             mesh_obj.rotation_euler.z = mesh_obj.rotation_euler.z + rotation_step
-            print('Trying '+ str(mesh_obj.rotation_euler.z) +' ...')
+            #print('Trying '+ str(mesh_obj.rotation_euler.z) +' ...')
         
     # Set the best rotation as final rotation
     print(f"Final aspect ratio error: {best_ar_err}\n"
@@ -487,8 +487,9 @@ def pos_depth_AI(context, mesh_obj, bb_image, camera_obj_dir, camera_obj_origin_
     if np.isnan(dist):
         dist = 5
         print("Nan fault. Default distance %d"%(dist))
-
-    delta_depth = camera_obj_origin_dist - dist * correction_factor
+    
+    const_offset = 3
+    delta_depth = camera_obj_origin_dist - dist * correction_factor - 2
     
     mesh_obj.location -= camera_obj_dir * delta_depth
     
