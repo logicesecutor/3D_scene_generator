@@ -30,7 +30,7 @@ Inside the add-on Zip, all files must not be inside an another child folder.
 ## Mesh Database
    Download -> [link Google Drive](https://drive.google.com/file/d/1Vs9PbDSrAoSa3ppKxTPGSartf3PSmEHT/view?usp=sharing).
    
-   Put them under the MeshDatabase folder
+   Put it under the Mesh Database folder
 
 ## Abstract
 
