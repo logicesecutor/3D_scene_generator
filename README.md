@@ -16,14 +16,22 @@ Blender_installation_folder\2.81\python\Script\pip.exe install -r requirements.t
 To install the add-on:
 - download the repository
 - unzip all files inside a directory
-- then download the pretrained models and unzip inside the repository directory
+- download the pretrained models and unzip inside the repository directory
+- download the mesh database and place it inside the Mesh Database directory
 - finally create a zip with the new created directory
 - install the zip as add-on from blender--> Edit\Blender preferences\Add-ons\install\Your_zip.zip
 ## NOTE!!
 Inside the add-on Zip, all files must not be inside an another child folder. 
 
 ## Pre-trained Models
-   Download -> [link Google Drive](https://drive.google.com/file/d/1yxzH88Ya8jfh9ElombDD1Fkjpy7NEn30/view?usp=sharing)
+   Download -> [link Google Drive](https://drive.google.com/file/d/1yxzH88Ya8jfh9ElombDD1Fkjpy7NEn30/view?usp=sharing).
+   
+   Put them under the add-on main folder
+
+## Mesh Database
+   Download -> [link Google Drive](https://drive.google.com/file/d/1Vs9PbDSrAoSa3ppKxTPGSartf3PSmEHT/view?usp=sharing).
+   
+   Put it under the Mesh Database folder
 
 ## Abstract
 
