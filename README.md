@@ -1,7 +1,37 @@
 # 3D Scene Generator
+### Tested Blender version:
+- 2.81
+
+## Setting up the project
+From cmd open Blender python folder and install pip package using this command:
+```
+Blender_installation_folder\2.81\python\bin\python.exe get-pip.py
+```
+[get-pip.py](https://pip.pypa.io/en/stable/installing/)
+
+Then go inside Blender python Script folder and install all the package using the requiremets.txt file in the git-repo:
+```
+Blender_installation_folder\2.81\python\Script\pip.exe install -r requirements.txt
+```
+To install the add-on:
+- download the repository
+- unzip all files inside a directory
+- download the pretrained models and unzip inside the repository directory
+- download the mesh database and place it inside the Mesh Database directory
+- finally create a zip with the new created directory
+- install the zip as add-on from blender--> Edit\Blender preferences\Add-ons\install\Your_zip.zip
+## NOTE!!
+Inside the add-on Zip, all files must not be inside an another child folder. 
 
 ## Pre-trained Models
-   Download -> [link Google Drive](https://drive.google.com/file/d/1yxzH88Ya8jfh9ElombDD1Fkjpy7NEn30/view?usp=sharing)
+   Download -> [link Google Drive](https://drive.google.com/file/d/1yxzH88Ya8jfh9ElombDD1Fkjpy7NEn30/view?usp=sharing).
+   
+   Put them under the add-on main folder
+
+## Mesh Database
+   Download -> [link Google Drive](https://drive.google.com/file/d/1Vs9PbDSrAoSa3ppKxTPGSartf3PSmEHT/view?usp=sharing).
+   
+   Put it under the Mesh Database folder
 
 ## Abstract
 
@@ -11,7 +41,7 @@ Languges:
 Python
 
 Main technologies and libraries: 
-Blender API (bpy), [XiaohuLuVPDetection](https://github.com/rayryeng/XiaohuLuVPDetection), [Camera Calibration PVR](https://github.com/mrossini-ethz/camera-calibration-pvr), [Image AI](https://github.com/OlafenwaMoses/ImageAI)
+Blender API (bpy), [XiaohuLuVPDetection](https://github.com/rayryeng/XiaohuLuVPDetection), [Camera Calibration PVR](https://github.com/mrossini-ethz/camera-calibration-pvr), [Image AI](https://github.com/OlafenwaMoses/ImageAI), [FCRN-DepthPrediction](https://github.com/iro-cp/FCRN-DepthPrediction)
 
 ## Project structure
 
@@ -124,7 +154,6 @@ We further repeat this idea to generate the walls on x and y axis.
 At this point, for each object, we lock all the possible transformations but the translation on the z-axis, and force the computation of the frame 50 (supposing that in this frame all the objects fell on the surfaces below).
 
 ![Physics](https://github.com/logicesecutor/3D_scene_generator/blob/main/doc/render_gravity.png "Physics") 
-
 
 
 
