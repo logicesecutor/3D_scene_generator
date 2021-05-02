@@ -27,6 +27,11 @@ Inside the add-on Zip, all files must not be inside an another child folder.
    
    Put them under the add-on main folder
 
+## Mesh Database
+   Download -> [link Google Drive](https://drive.google.com/file/d/1Vs9PbDSrAoSa3ppKxTPGSartf3PSmEHT/view?usp=sharing).
+   
+   Put them under the MeshDatabase folder
+
 ## Abstract
 
 The aim of this project is to generate a 3D scene basing on a single input image.
